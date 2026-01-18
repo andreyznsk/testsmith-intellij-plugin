@@ -1,9 +1,25 @@
 <idea-plugin>
     <id>io.testsmith.plugin</id>
     <name>TestSmith</name>
+
     <vendor>TestSmith</vendor>
     <description>
         Coverage-driven test generation assistant.
     </description>
     <depends>com.intellij.modules.platform</depends>
+
+    <actions>
+        <action
+                id="io.testsmith.plugin.HelloAction"
+                class="io.testsmith.plugin.actions.HelloAction"
+                text="TestSmith: Hello"
+                description="Hello action for TestSmith"
+                icon="/icons/testsmith.svg">
+            <add-to-group
+                    group-id="ToolsMenu"
+                    anchor="last"/>
+        </action>
+    </actions>
+
+
 </idea-plugin>

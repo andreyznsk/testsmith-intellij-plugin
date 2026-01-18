@@ -1,29 +1,29 @@
 plugins {
     id("java")
-    id("org.jetbrains.intellij") version "1.17.4"
+    id("org.jetbrains.intellij.platform") version "2.10.5"
 }
 
-group = "io.testsmith"
+group = "smith.testsmith"
 version = "0.0.1-SNAPSHOT"
 
 java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
-    }
+    toolchain { languageVersion.set(JavaLanguageVersion.of(21)) }
 }
 
 repositories {
     mavenCentral()
+    intellijPlatform { defaultRepositories() }
 }
 
-intellij {
-    version.set("2025.1")
-    type.set("IC")
+dependencies {
+    intellijPlatform {
+        create("IC", "2025.1")
+        bundledPlugin("com.intellij.java")
+    }
 }
 
-tasks {
-    patchPluginXml {
-        sinceBuild.set("251")
-        untilBuild.set("251.*")
+intellijPlatform {
+    pluginConfiguration {
+        ideaVersion { sinceBuild = "251"; untilBuild = "252.*" }
     }
 }
