@@ -1,0 +1,9 @@
+<idea-plugin>
+    <id>io.testsmith.plugin</id>
+    <name>TestSmith</name>
+    <vendor>TestSmith</vendor>
+    <description>
+        Coverage-driven test generation assistant.
+    </description>
+    <depends>com.intellij.modules.platform</depends>
+</idea-plugin>
