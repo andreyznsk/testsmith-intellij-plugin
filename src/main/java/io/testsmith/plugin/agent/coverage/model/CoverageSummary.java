@@ -1,6 +1,6 @@
 package io.testsmith.plugin.agent.coverage.model;
 
-public record CoverageSummary(int totalLines, int coveredLines, int missedLines) {
+public record CoverageSummary(long totalLines, long coveredLines, long missedLines) {
     public CoverageSummary {
         if (totalLines < 0 || coveredLines < 0 || missedLines < 0) {
             throw new IllegalArgumentException("coverage line counts must be non-negative");

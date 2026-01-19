@@ -28,9 +28,9 @@ public record CoverageSnapshot(
     }
 
     private static void validateConsistency(CoverageSummary summary, Map<ClassId, ClassCoverage> classes) {
-        int total = 0;
-        int covered = 0;
-        int missed = 0;
+        long total = 0;
+        long covered = 0;
+        long missed = 0;
         for (ClassCoverage coverage : classes.values()) {
             total += coverage.totalLines();
             covered += coverage.coveredLines();
