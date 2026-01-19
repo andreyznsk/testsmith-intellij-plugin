@@ -33,9 +33,12 @@ public record CoverageSnapshot(
         long missed = 0L;
 
         for (ClassCoverage c : classes.values()) {
+            if (c.lineCovered() < 0 || c.lineMissed() < 0) {
+                continue;
+            }
             total += c.totalLines();
-            covered += c.coveredLines();
-            missed += c.missedLines();
+            covered += c.lineCovered();
+            missed += c.lineMissed();
         }
 
         // Overflow guard: we keep public API as int, so snapshot must fit into int range.

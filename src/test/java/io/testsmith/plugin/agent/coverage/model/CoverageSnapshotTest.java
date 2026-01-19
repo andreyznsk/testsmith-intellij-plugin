@@ -16,9 +16,13 @@ class CoverageSnapshotTest {
                 new ClassId("com.example.Foo"),
                 new PackageName("com.example"),
                 1,
-                1,
                 0,
-                Set.of()
+                0,
+                0,
+                0,
+                0,
+                Set.of(),
+                "Foo.java"
         );
         Map<ClassId, ClassCoverage> classes = new HashMap<>();
         classes.put(coverage.classId(), coverage);
