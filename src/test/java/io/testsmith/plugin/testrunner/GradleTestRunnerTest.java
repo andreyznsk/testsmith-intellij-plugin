@@ -2,8 +2,10 @@ package io.testsmith.plugin.testrunner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -54,6 +56,30 @@ class GradleTestRunnerTest {
 
         assertEquals(
                 List.of("gradle", "--quiet", "test", "--tests", "com.example.MyTest.testOne"),
+                executor.command()
+        );
+    }
+
+    @Test
+    void fullSuiteUsesTestTaskOnly(@TempDir Path tempDir) throws Exception {
+        FakeExecutor executor = new FakeExecutor(new ExecResult(0, "", "", false));
+        GradleTestRunner runner = new GradleTestRunner(true, executor);
+        Path jacocoXml = tempDir.resolve("jacoco.xml");
+        Files.createFile(jacocoXml);
+        TestRunRequest request = new TestRunRequest(
+                TestRunMode.FULL_SUITE_COVERAGE,
+                null,
+                tempDir,
+                Duration.ofSeconds(5),
+                Map.of(),
+                List.of(),
+                jacocoXml
+        );
+
+        runner.run(request);
+
+        assertEquals(
+                List.of("gradle", "test"),
                 executor.command()
         );
     }
@@ -144,6 +170,61 @@ class GradleTestRunnerTest {
         assertFalse(result.success());
         assertEquals(Optional.of(TestFailureType.INFRA_FAILURE), result.failureType());
         assertTrue(result.failureSummary().orElse("").contains(jacocoXml.toString()));
+    }
+
+    @Test
+    void verifyTargetRequiresTarget(@TempDir Path tempDir) {
+        GradleTestRunner runner = new GradleTestRunner(true, new FakeExecutor(new ExecResult(0, "", "", false)));
+        TestRunRequest request = new TestRunRequest(
+                TestRunMode.VERIFY_TARGET,
+                null,
+                tempDir,
+                Duration.ofSeconds(5),
+                Map.of(),
+                List.of(),
+                null
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> runner.run(request));
+    }
+
+    @Test
+    void fullSuiteRequiresJacocoPath(@TempDir Path tempDir) {
+        GradleTestRunner runner = new GradleTestRunner(true, new FakeExecutor(new ExecResult(0, "", "", false)));
+        TestRunRequest request = new TestRunRequest(
+                TestRunMode.FULL_SUITE_COVERAGE,
+                null,
+                tempDir,
+                Duration.ofSeconds(5),
+                Map.of(),
+                List.of(),
+                null
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> runner.run(request));
+    }
+
+    @Test
+    void prefersGradleWrapperWhenPresent(@TempDir Path tempDir) throws Exception {
+        FakeExecutor executor = new FakeExecutor(new ExecResult(0, "", "", false));
+        Files.createFile(tempDir.resolve("gradlew"));
+        GradleTestRunner runner = new GradleTestRunner(true, executor);
+        TestRunRequest request = new TestRunRequest(
+                TestRunMode.VERIFY_TARGET,
+                new TestTarget("com.example.MyTest", null),
+                tempDir,
+                Duration.ofSeconds(5),
+                Map.of(),
+                List.of(),
+                null
+        );
+
+        runner.run(request);
+
+        assertEquals(
+                List.of("./gradlew", "--quiet", "test", "--tests", "com.example.MyTest"),
+                executor.command()
+        );
     }
 
     private static final class FakeExecutor implements ProcessExecutor {

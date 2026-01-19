@@ -29,6 +29,7 @@ public final class GradleTestRunner implements TestRunner {
     @Override
     public TestRunResult run(TestRunRequest request) {
         Objects.requireNonNull(request, "request must not be null");
+        validateRequest(request);
         Instant start = Instant.now();
         String stdout = "";
         String stderr = "";
@@ -81,29 +82,27 @@ public final class GradleTestRunner implements TestRunner {
 
     private List<String> buildCommand(TestRunRequest request) {
         List<String> args = new ArrayList<>();
-        // TODO: Decide how to detect and prefer a Gradle wrapper when present.
-        args.add("gradle");
-        if (quiet) {
+        args.add(selectGradleBinary(request.projectRoot()));
+        if (quiet && request.mode() == TestRunMode.VERIFY_TARGET) {
             args.add("--quiet");
         }
         args.add("test");
         if (request.mode() == TestRunMode.VERIFY_TARGET) {
+            ensureGradleTargetSafe(request.target());
             args.add("--tests");
             args.add(request.target().toGradleFilter());
-        } else {
-            // TODO: Clarify multi-module targeting for root vs submodule execution.
-            args.add("jacocoTestReport");
         }
         return List.copyOf(args);
     }
 
     private TestFailureType classifyFailure(String output) {
-        if (containsAny(output, "COMPILATION ERROR", "Compilation failed", "compileJava FAILED", "compileTestJava FAILED",
-                "compileKotlin FAILED", "compileTestKotlin FAILED")) {
+        String normalized = output.toLowerCase();
+        if (containsAny(normalized, "compilation error", "compilation failed", "compilejava failed", "compiletestjava failed",
+                "compilekotlin failed", "compiletestkotlin failed")) {
             return TestFailureType.COMPILATION_FAILURE;
         }
-        if (containsAny(output, "There were failing tests", "Execution failed for task ':test'", "Task :test FAILED",
-                "Tests FAILED", "Test failed")) {
+        if (containsAny(normalized, "there were failing tests", "execution failed for task ':test'",
+                "task :test failed", "tests failed", "test failed")) {
             return TestFailureType.TEST_FAILURE;
         }
         return TestFailureType.INFRA_FAILURE;
@@ -141,6 +140,46 @@ public final class GradleTestRunner implements TestRunner {
 
     private boolean isFailureSignal(String line) {
         String upper = line.toUpperCase();
-        return upper.contains("ERROR") || upper.contains("FAILURE") || upper.contains("COMPILATION");
+        return upper.contains("ERROR") || upper.contains("FAILURE") || upper.contains("COMPILATION")
+                || upper.contains("CAUSED BY") || upper.contains("TASK");
+    }
+
+    private void validateRequest(TestRunRequest request) {
+        if (request.mode() == TestRunMode.VERIFY_TARGET && request.target() == null) {
+            throw new IllegalArgumentException("target must be provided for VERIFY_TARGET");
+        }
+        if (request.mode() == TestRunMode.FULL_SUITE_COVERAGE && request.jacocoXmlPath() == null) {
+            throw new IllegalArgumentException("jacocoXmlPath must be provided for FULL_SUITE_COVERAGE");
+        }
+    }
+
+    private String selectGradleBinary(java.nio.file.Path projectRoot) {
+        java.nio.file.Path wrapper = projectRoot.resolve("gradlew");
+        if (Files.exists(wrapper)) {
+            return "./gradlew";
+        }
+        java.nio.file.Path wrapperBat = projectRoot.resolve("gradlew.bat");
+        if (Files.exists(wrapperBat)) {
+            return "gradlew.bat";
+        }
+        return "gradle";
+    }
+
+    private void ensureGradleTargetSafe(TestTarget target) {
+        if (containsShellChars(target.className()) || containsShellChars(target.methodName())) {
+            throw new IllegalArgumentException("Gradle test target contains unsupported whitespace or quotes");
+        }
+    }
+
+    private boolean containsShellChars(String value) {
+        if (value == null) {
+            return false;
+        }
+        for (char ch : value.toCharArray()) {
+            if (Character.isWhitespace(ch) || ch == '"' || ch == '\'') {
+                return true;
+            }
+        }
+        return false;
     }
 }
