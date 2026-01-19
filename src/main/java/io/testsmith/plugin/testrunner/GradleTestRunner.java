@@ -82,7 +82,7 @@ public final class GradleTestRunner implements TestRunner {
 
     private List<String> buildCommand(TestRunRequest request) {
         List<String> args = new ArrayList<>();
-        args.add(selectGradleBinary(request.projectRoot()));
+        args.addAll(selectGradleLauncher(request.projectRoot()));
         if (quiet && request.mode() == TestRunMode.VERIFY_TARGET) {
             args.add("--quiet");
         }
@@ -153,16 +153,18 @@ public final class GradleTestRunner implements TestRunner {
         }
     }
 
-    private String selectGradleBinary(java.nio.file.Path projectRoot) {
+    private List<String> selectGradleLauncher(java.nio.file.Path projectRoot) {
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
         java.nio.file.Path wrapper = projectRoot.resolve("gradlew");
-        if (Files.exists(wrapper)) {
-            return "./gradlew";
-        }
         java.nio.file.Path wrapperBat = projectRoot.resolve("gradlew.bat");
-        if (Files.exists(wrapperBat)) {
-            return "gradlew.bat";
+
+        if (isWindows && Files.exists(wrapperBat)) {
+            return List.of("cmd", "/c", "gradlew.bat");
         }
-        return "gradle";
+        if (!isWindows && Files.exists(wrapper)) {
+            return List.of("./gradlew");
+        }
+        return List.of("gradle");
     }
 
     private void ensureGradleTargetSafe(TestTarget target) {
