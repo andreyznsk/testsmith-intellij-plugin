@@ -60,7 +60,7 @@ public final class JacocoXmlCoverageReader implements CoverageReader {
                     }
                 }
             }
-        } catch (IOException | XMLStreamException ex) {
+        } catch (IOException | XMLStreamException | IllegalArgumentException ex) {
             throw new IllegalStateException("Failed to read JaCoCo XML coverage", ex);
         }
 
@@ -77,14 +77,18 @@ public final class JacocoXmlCoverageReader implements CoverageReader {
     }
 
     private static int parseNonNegativeInt(String value, String name) {
-        int parsed;
+        if (value == null) {
+            throw new IllegalArgumentException("Missing required attribute '" + name + "'");
+        }
+        final int parsed;
         try {
             parsed = Integer.parseInt(value);
         } catch (NumberFormatException e) {
-            throw new IllegalStateException("Missing attribute 'missed' on :" + name);
+            throw new IllegalArgumentException(
+                    "Invalid integer value for attribute '" + name + "': '" + value + "'", e);
         }
         if (parsed < 0) {
-            throw new IllegalArgumentException(name + " must be >= 0");
+            throw new IllegalArgumentException("Attribute '" + name + "' must be >= 0, got: " + parsed);
         }
         return parsed;
     }

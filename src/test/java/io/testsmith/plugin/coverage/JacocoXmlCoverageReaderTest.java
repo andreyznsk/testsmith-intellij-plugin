@@ -61,7 +61,7 @@ class JacocoXmlCoverageReaderTest {
             .get("EmptyCoverage");
         assertNotNull(emptyCoverage);
         assertEquals(0, emptyCoverage.lineCoverage().total());
-        assertEquals(1.0, emptyCoverage.lineCoverage().ratio());
+        assertEquals(1.0, emptyCoverage.lineCoverage().ratio(), 1e-12);
     }
 
     @Test
