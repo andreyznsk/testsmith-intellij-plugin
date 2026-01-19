@@ -9,19 +9,19 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public final class MavenTestRunner implements TestRunner {
+public final class GradleTestRunner implements TestRunner {
     private final boolean quiet;
     private final ProcessExecutor processExecutor;
 
-    public MavenTestRunner() {
+    public GradleTestRunner() {
         this(true, new DefaultProcessExecutor());
     }
 
-    public MavenTestRunner(boolean quiet) {
+    public GradleTestRunner(boolean quiet) {
         this(quiet, new DefaultProcessExecutor());
     }
 
-    public MavenTestRunner(boolean quiet, ProcessExecutor processExecutor) {
+    public GradleTestRunner(boolean quiet, ProcessExecutor processExecutor) {
         this.quiet = quiet;
         this.processExecutor = Objects.requireNonNull(processExecutor, "processExecutor must not be null");
     }
@@ -81,26 +81,29 @@ public final class MavenTestRunner implements TestRunner {
 
     private List<String> buildCommand(TestRunRequest request) {
         List<String> args = new ArrayList<>();
-        args.add("mvn");
+        // TODO: Decide how to detect and prefer a Gradle wrapper when present.
+        args.add("gradle");
         if (quiet) {
-            args.add("-q");
-        }
-        args.addAll(request.mavenArgsExtra());
-        if (request.mode() == TestRunMode.VERIFY_TARGET) {
-            args.add("-Dtest=" + request.target().toMavenFilter());
+            args.add("--quiet");
         }
         args.add("test");
+        if (request.mode() == TestRunMode.VERIFY_TARGET) {
+            args.add("--tests");
+            args.add(request.target().toGradleFilter());
+        } else {
+            // TODO: Clarify multi-module targeting for root vs submodule execution.
+            args.add("jacocoTestReport");
+        }
         return List.copyOf(args);
     }
 
     private TestFailureType classifyFailure(String output) {
-        if (containsAny(output, "COMPILATION ERROR", "Compilation failure")) {
+        if (containsAny(output, "COMPILATION ERROR", "Compilation failed", "compileJava FAILED", "compileTestJava FAILED",
+                "compileKotlin FAILED", "compileTestKotlin FAILED")) {
             return TestFailureType.COMPILATION_FAILURE;
         }
-        if (output.contains("Failed to execute goal") && output.contains("maven-compiler-plugin")) {
-            return TestFailureType.COMPILATION_FAILURE;
-        }
-        if (containsAny(output, "Tests run:", "There are test failures", "Failed tests:", "Error(s):")) {
+        if (containsAny(output, "There were failing tests", "Execution failed for task ':test'", "Task :test FAILED",
+                "Tests FAILED", "Test failed")) {
             return TestFailureType.TEST_FAILURE;
         }
         return TestFailureType.INFRA_FAILURE;
