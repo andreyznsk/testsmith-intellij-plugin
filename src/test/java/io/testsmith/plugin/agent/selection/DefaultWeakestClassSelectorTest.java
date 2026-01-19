@@ -98,8 +98,9 @@ class DefaultWeakestClassSelectorTest {
         Optional<ClassCoverage> selected = selector.select(snapshot(List.of(stagnant, nextBest)), context);
 
         assertTrue(selected.isPresent());
-        assertEquals("com.example.A", selected.get().className());
-        assertNull(state.blacklist().get("com.example.A"));
+        assertEquals("com.example.B", selected.get().className());
+        assertEquals(3, state.blacklist().get("com.example.A"));
+
     }
 
     private static ClassCoverage coverage(String className, String packageName, int lineCovered, int lineMissed,

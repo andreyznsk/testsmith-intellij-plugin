@@ -36,14 +36,19 @@ public final class DefaultStagnationGuard {
         if (!className.equals(state.lastSelectedClass())) {
             return false;
         }
-        if (state.sameClassRepeatCount() <= tuning.maxSameClassRepeats()) {
+
+        int wouldBeRepeatCount = state.sameClassRepeatCount() + 1;
+        if (wouldBeRepeatCount <= tuning.maxSameClassRepeats()) {
             return false;
         }
+
         Integer previousMissed = state.lastMissedMetricFor(className);
         if (previousMissed == null) {
             return false;
         }
+
         int currentMissed = ranker.missedMetric(candidate);
         return currentMissed >= previousMissed;
     }
+
 }
