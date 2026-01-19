@@ -1,9 +1,5 @@
 package io.testsmith.plugin.testrunner;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
@@ -11,18 +7,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public final class MavenTestRunner implements TestRunner {
     private final boolean quiet;
+    private final ProcessExecutor processExecutor;
 
     public MavenTestRunner() {
-        this(true);
+        this(true, new DefaultProcessExecutor());
     }
 
     public MavenTestRunner(boolean quiet) {
+        this(quiet, new DefaultProcessExecutor());
+    }
+
+    public MavenTestRunner(boolean quiet, ProcessExecutor processExecutor) {
         this.quiet = quiet;
+        this.processExecutor = Objects.requireNonNull(processExecutor, "processExecutor must not be null");
     }
 
     @Override
@@ -35,41 +36,18 @@ public final class MavenTestRunner implements TestRunner {
         Optional<TestFailureType> failureType = Optional.empty();
         Optional<String> failureSummary = Optional.empty();
 
-        List<String> command = buildCommand(request);
-        ProcessBuilder builder = new ProcessBuilder(command);
-        builder.directory(request.projectRoot().toFile());
-        builder.environment().putAll(request.env());
-
-        try {
-            Process process = builder.start();
-            StreamCollector outCollector = new StreamCollector(process.getInputStream());
-            StreamCollector errCollector = new StreamCollector(process.getErrorStream());
-            Thread outThread = new Thread(outCollector, "maven-stdout-reader");
-            Thread errThread = new Thread(errCollector, "maven-stderr-reader");
-            outThread.start();
-            errThread.start();
-
-            boolean finished = process.waitFor(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                exitCode = -1;
-                failureType = Optional.of(TestFailureType.INFRA_FAILURE);
-                failureSummary = Optional.of("Process timed out after " + request.timeout().toSeconds() + "s");
-            } else {
-                exitCode = process.exitValue();
-            }
-
-            outThread.join();
-            errThread.join();
-            stdout = outCollector.output();
-            stderr = errCollector.output();
-        } catch (IOException e) {
+        ExecResult execResult = processExecutor.exec(
+                buildCommand(request),
+                request.projectRoot(),
+                request.env(),
+                request.timeout()
+        );
+        stdout = execResult.stdout();
+        stderr = execResult.stderr();
+        exitCode = execResult.exitCode();
+        if (execResult.timedOut()) {
             failureType = Optional.of(TestFailureType.INFRA_FAILURE);
-            failureSummary = Optional.of("Failed to start Maven process: " + e.getMessage());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            failureType = Optional.of(TestFailureType.INFRA_FAILURE);
-            failureSummary = Optional.of("Maven process interrupted");
+            failureSummary = Optional.of("Process timed out after " + request.timeout().toSeconds() + "s");
         }
 
         if (failureType.isEmpty() && exitCode != 0) {
@@ -105,11 +83,11 @@ public final class MavenTestRunner implements TestRunner {
         if (quiet) {
             args.add("-q");
         }
+        args.addAll(request.mavenArgsExtra());
         if (request.mode() == TestRunMode.VERIFY_TARGET) {
             args.add("-Dtest=" + request.target().toMavenFilter());
         }
         args.add("test");
-        args.addAll(request.mavenArgsExtra());
         return List.copyOf(args);
     }
 
@@ -136,40 +114,28 @@ public final class MavenTestRunner implements TestRunner {
     }
 
     private String summaryFromOutput(String output) {
-        List<String> lines = output.lines()
+        List<String> important = output.lines()
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .filter(this::isFailureSignal)
+                .limit(3)
+                .collect(Collectors.toList());
+        if (!important.isEmpty()) {
+            return String.join(System.lineSeparator(), important);
+        }
+        List<String> fallback = output.lines()
                 .map(String::trim)
                 .filter(line -> !line.isEmpty())
                 .limit(3)
                 .collect(Collectors.toList());
-        if (lines.isEmpty()) {
+        if (fallback.isEmpty()) {
             return null;
         }
-        return String.join(System.lineSeparator(), lines);
+        return String.join(System.lineSeparator(), fallback);
     }
 
-    private static final class StreamCollector implements Runnable {
-        private final InputStream inputStream;
-        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
-        private StreamCollector(InputStream inputStream) {
-            this.inputStream = Objects.requireNonNull(inputStream, "inputStream must not be null");
-        }
-
-        @Override
-        public void run() {
-            try (InputStream stream = inputStream) {
-                byte[] chunk = new byte[4096];
-                int read;
-                while ((read = stream.read(chunk)) != -1) {
-                    buffer.write(chunk, 0, read);
-                }
-            } catch (IOException ignored) {
-                // Best effort; failures are handled via process exit and output diagnostics.
-            }
-        }
-
-        private String output() {
-            return buffer.toString(StandardCharsets.UTF_8);
-        }
+    private boolean isFailureSignal(String line) {
+        String upper = line.toUpperCase();
+        return upper.contains("ERROR") || upper.contains("FAILURE") || upper.contains("COMPILATION");
     }
 }
