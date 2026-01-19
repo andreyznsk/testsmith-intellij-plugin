@@ -80,8 +80,9 @@ public final class ExclusionRules {
             if (trimmed.isEmpty()) {
                 continue;
             }
-            if (stripPackageSuffix && trimmed.endsWith(".*")) {
-                trimmed = trimmed.substring(0, trimmed.length() - 2).trim();
+            if (stripPackageSuffix) {
+                if (trimmed.endsWith(".*")) trimmed = trimmed.substring(0, trimmed.length() - 2).trim();
+                if (trimmed.endsWith(".")) trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
             }
             if (!trimmed.isEmpty()) {
                 normalized.add(trimmed);

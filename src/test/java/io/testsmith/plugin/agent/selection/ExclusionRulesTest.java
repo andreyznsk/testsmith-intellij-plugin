@@ -7,7 +7,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ExclusionMatcherTest {
+class ExclusionRulesTest {
     @Test
     void exactClassExclusion() {
         ExclusionRules rules = new ExclusionRules(List.of(), List.of("com.a.B"));
@@ -42,5 +42,11 @@ class ExclusionMatcherTest {
         assertTrue(rules.isExcluded("com.a.B"));
         assertTrue(rules.isExcluded("com.a.C"));
         assertFalse(rules.isExcluded("com.b.C"));
+    }
+
+    @Test
+    void defaultPackageNeverMatchesPackageRule() {
+        ExclusionRules rules = new ExclusionRules(List.of("com.a"), List.of());
+        assertFalse(rules.isExcluded("A"));
     }
 }
