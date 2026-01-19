@@ -34,7 +34,10 @@ class ExclusionMatcherTest {
 
     @Test
     void trimsAndIgnoresEmptyEntries() {
-        ExclusionRules rules = new ExclusionRules(List.of("  ", " com.a ", null), List.of(" ", "com.a.B "));
+        ExclusionRules rules = new ExclusionRules(
+                java.util.Arrays.asList("  ", " com.a ", null),
+                java.util.Arrays.asList(" ", "com.a.B ")
+        );
 
         assertTrue(rules.isExcluded("com.a.B"));
         assertTrue(rules.isExcluded("com.a.C"));
