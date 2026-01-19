@@ -31,6 +31,10 @@ public record ClassCoverage(
         if (copiedMissedLines.size() != missedLines) {
             throw new IllegalArgumentException("missedLineNumbers size must equal missedLines");
         }
+
+        if (totalLines > 0 && copiedMissedLines.size() != missedLines) {
+            throw new IllegalArgumentException("missedLineNumbers size must equal missedLines when totalLines > 0");
+        }
         missedLineNumbers = copiedMissedLines;
     }
 }
