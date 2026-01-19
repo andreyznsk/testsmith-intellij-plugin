@@ -1,0 +1,41 @@
+Iteration,Feature,StoryPoints,Days,Comment,Result
+Iteration 0,Agent domain model,2,1,Core entities and invariants,done
+Iteration 0,Execution modes (Manual/Auto),2,1,Stop conditions included
+Iteration 0,Failure modes definition,1,0.5,Formalized error taxonomy
+Iteration 0,Core interfaces contracts,2,1,LLM/Coverage/Runner
+Iteration 0,Hard constraints enforcement,1,0.5,No-hallucination guardrails
+
+Iteration 1,JaCoCo XML parser (Maven),2,1,Default path support
+Iteration 1,JaCoCo XML parser (Gradle),2,1,Default path support
+Iteration 1,Coverage snapshot model,1,0.5,Immutable model
+Iteration 1,Weakest class selection policy,2,1,Pluggable strategy
+Iteration 1,Exclusion rules support,1,0.5,Packages/classes
+
+Iteration 2,Maven test runner,2,1,Process runner
+Iteration 2,Gradle test runner,2,1,Process runner
+Iteration 2,Test execution result model,1,0.5,Exit codes + output
+Iteration 2,Failure extraction,2,1,Stacktrace parsing
+Iteration 2,Stagnation detection,1,0.5,Coverage delta logic
+
+Iteration 3,LLM client abstraction,1,0.5,Unified interface
+Iteration 3,Ollama provider,2,1,Deterministic config
+Iteration 3,Prompt contract schema,2,1,Strict format
+Iteration 3,Structured output validation,2,1,JSON schema
+Iteration 3,Fix-test loop,2,1,Retry with error context
+
+Iteration 4,Plugin settings UI,2,1,Agent/Coverage/LLM
+Iteration 4,Tool window UI,2,1,Status + logs
+Iteration 4,Manual approval flow,2,1,Diff & accept/reject
+Iteration 4,Run/Stop actions,1,0.5,IDE actions
+Iteration 4,Progress visualization,1,0.5,Iteration feedback
+
+Iteration 5,Provider switching mechanism,2,1,Strategy pattern
+Iteration 5,OpenAI provider,2,1,API integration
+Iteration 5,GigaChat provider,2,1,API integration
+Iteration 5,Secrets handling,1,0.5,IDE secure storage
+Iteration 5,Provider validation,1,0.5,Compatibility checks
+
+Iteration 6,MCP decision adapter,2,1,Read-only MCP
+Iteration 6,Rule vs LLM comparison,1,0.5,Decision analysis
+Iteration 6,MCP integration safety,1,0.5,No side effects
+Iteration 6,Decision logs & metrics,1,0.5,Evaluation only
