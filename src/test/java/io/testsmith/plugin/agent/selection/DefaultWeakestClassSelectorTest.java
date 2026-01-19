@@ -40,15 +40,16 @@ class DefaultWeakestClassSelectorTest {
     }
 
     @Test
-    void excludesUserPatterns() {
-        ClassCoverage excluded = coverage("com.example.Invoice", "com.example", 1, 4, 2, 2);
-        ClassCoverage included = coverage("com.example.Billing", "com.example", 1, 1, 2, 2);
+    void excludesUserClasses() {
+        ClassCoverage weakestExcluded = coverage("com.example.Invoice", "com.example", 1, 6, 2, 2);
+        ClassCoverage nextWeakest = coverage("com.example.Billing", "com.example", 1, 4, 2, 2);
+        ClassCoverage strongest = coverage("com.example.Pricing", "com.example", 2, 1, 2, 2);
 
-        ExclusionRules rules = new ExclusionRules(List.of(), List.of(".*Invoice"), List.of(), List.of());
+        ExclusionRules rules = new ExclusionRules(List.of(), List.of("com.example.Invoice"));
         SelectionContext context = new SelectionContext(rules, SelectionTuning.defaults(), new SelectionState());
         DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector();
 
-        Optional<ClassCoverage> selected = selector.select(snapshot(List.of(excluded, included)), context);
+        Optional<ClassCoverage> selected = selector.select(snapshot(List.of(weakestExcluded, nextWeakest, strongest)), context);
 
         assertTrue(selected.isPresent());
         assertEquals("com.example.Billing", selected.get().className());
@@ -66,6 +67,20 @@ class DefaultWeakestClassSelectorTest {
 
         assertTrue(selected.isPresent());
         assertEquals("com.example.service.UserService", selected.get().className());
+    }
+
+    @Test
+    void returnsEmptyWhenAllExcluded() {
+        ClassCoverage first = coverage("com.example.First", "com.example", 1, 5, 2, 2);
+        ClassCoverage second = coverage("com.example.Second", "com.example", 1, 2, 2, 2);
+
+        ExclusionRules rules = new ExclusionRules(List.of(), List.of("com.example.First", "com.example.Second"));
+        SelectionContext context = new SelectionContext(rules, SelectionTuning.defaults(), new SelectionState());
+        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector();
+
+        Optional<ClassCoverage> selected = selector.select(snapshot(List.of(first, second)), context);
+
+        assertTrue(selected.isEmpty());
     }
 
     @Test
