@@ -43,10 +43,14 @@ class CoverageDiffTest {
         ClassCoverage coverage = new ClassCoverage(
                 new ClassId("com.example.Foo"),
                 new PackageName("com.example"),
-                totalLines,
                 coveredLines,
                 missedLines,
-                missedLines == 0 ? Set.of() : Set.of(1)
+                coveredLines,
+                missedLines,
+                0,
+                0,
+                missedLines == 0 ? Set.of() : Set.of(1),
+                "Foo.java"
         );
 
         return new CoverageSnapshot(
