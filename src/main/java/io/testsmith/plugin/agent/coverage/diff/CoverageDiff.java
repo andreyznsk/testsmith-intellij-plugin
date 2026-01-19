@@ -10,11 +10,11 @@ public record CoverageDiff(CoverageSnapshot before, CoverageSnapshot after) {
         Objects.requireNonNull(after, "after snapshot must not be null");
     }
 
-    public long deltaCoveredLines() {
+    public int deltaCoveredLines() {
         return after.summary().coveredLines() - before.summary().coveredLines();
     }
 
-    public long deltaMissedLines() {
+    public int deltaMissedLines() {
         return after.summary().missedLines() - before.summary().missedLines();
     }
 

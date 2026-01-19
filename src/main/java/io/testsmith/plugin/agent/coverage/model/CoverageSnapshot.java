@@ -28,18 +28,28 @@ public record CoverageSnapshot(
     }
 
     private static void validateConsistency(CoverageSummary summary, Map<ClassId, ClassCoverage> classes) {
-        long total = 0;
-        long covered = 0;
-        long missed = 0;
-        for (ClassCoverage coverage : classes.values()) {
-            total += coverage.totalLines();
-            covered += coverage.coveredLines();
-            missed += coverage.missedLines();
+        long total = 0L;
+        long covered = 0L;
+        long missed = 0L;
+
+        for (ClassCoverage c : classes.values()) {
+            total += c.totalLines();
+            covered += c.coveredLines();
+            missed += c.missedLines();
         }
-        if (summary.totalLines() != total || summary.coveredLines() != covered || summary.missedLines() != missed) {
-            // We validate in the constructor to keep snapshots self-consistent. If profiling ever
-            // shows this aggregation as a hot path for huge snapshots, it can be moved to a separate
-            // validator to keep construction cheap while retaining an explicit consistency check.
+
+        // Overflow guard: we keep public API as int, so snapshot must fit into int range.
+        if (total > Integer.MAX_VALUE || covered > Integer.MAX_VALUE || missed > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("coverage totals exceed int range");
+        }
+
+        int totalInt = (int) total;
+        int coveredInt = (int) covered;
+        int missedInt = (int) missed;
+
+        if (summary.totalLines() != totalInt
+                || summary.coveredLines() != coveredInt
+                || summary.missedLines() != missedInt) {
             throw new IllegalArgumentException("summary must match the aggregate of class coverage values");
         }
     }
