@@ -65,6 +65,10 @@ build/idea/
 jacoco/
 coverage/
 *.exec
+!src/main/java/**/coverage/
+!src/main/java/**/coverage/**
+!src/test/java/**/coverage/
+!src/test/java/**/coverage/**
 
 ############################################################
 # Temporary files
