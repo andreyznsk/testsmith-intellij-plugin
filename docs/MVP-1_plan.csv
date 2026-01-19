@@ -1,12 +1,12 @@
 Iteration,Number,Feature,StoryPoints,Days,Comment,Result
 Iteration 0,1,Agent domain model,2,1,Core entities and invariants,done
-Iteration 0,2,Execution modes (Manual/Auto),2,1,Stop conditions included
-Iteration 0,3,Failure modes definition,1,0.5,Formalized error taxonomy
-Iteration 0,4,Core interfaces contracts,2,1,LLM/Coverage/Runner
-Iteration 0,5,Hard constraints enforcement,1,0.5,No-hallucination guardrails
+Iteration 0,2,Execution modes (Manual/Auto),2,1,Stop conditions included,done
+Iteration 0,3,Failure modes definition,1,0.5,Formalized error taxonomy,done
+Iteration 0,4,Core interfaces contracts,2,1,LLM/Coverage/Runner,done
+Iteration 0,5,Hard constraints enforcement,1,0.5,No-hallucination guardrails,done
 
-Iteration 1,6,JaCoCo XML parser (Maven),2,1,Default path support
-Iteration 1,7,JaCoCo XML parser (Gradle),2,1,Default path support
+Iteration 1,6,JaCoCo XML parser (Maven),2,1,Default path support,done
+Iteration 1,7,JaCoCo XML parser (Gradle),2,1,Default path support,done
 Iteration 1,8,Coverage snapshot model,1,0.5,Immutable model
 Iteration 1,9,Weakest class selection policy,2,1,Pluggable strategy
 Iteration 1,10,Exclusion rules support,1,0.5,Packages/classes
