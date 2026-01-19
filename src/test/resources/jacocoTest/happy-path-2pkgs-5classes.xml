@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report name="demo">
+  <package name="com/acme/service">
+    <class name="OrderService" sourcefilename="OrderService.java">
+      <counter type="LINE" missed="7" covered="3"/>
+      <counter type="INSTRUCTION" missed="70" covered="30"/>
+    </class>
+    <class name="PricingService" sourcefilename="PricingService.java">
+      <counter type="LINE" missed="1" covered="9"/>
+    </class>
+    <class name="AppConfig" sourcefilename="AppConfig.java">
+      <counter type="LINE" missed="100" covered="0"/>
+    </class>
+  </package>
+
+  <package name="com/acme/dto">
+    <class name="UserDto" sourcefilename="UserDto.java">
+      <counter type="LINE" missed="50" covered="0"/>
+    </class>
+    <class name="Money" sourcefilename="Money.java">
+      <counter type="LINE" missed="0" covered="10"/>
+    </class>
+  </package>
+</report>
