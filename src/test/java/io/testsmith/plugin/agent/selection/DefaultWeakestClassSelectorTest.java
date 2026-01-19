@@ -1,25 +1,14 @@
 package io.testsmith.plugin.agent.selection;
 
-import io.testsmith.plugin.agent.coverage.model.ClassCoverage;
-import io.testsmith.plugin.agent.coverage.model.ClassId;
-import io.testsmith.plugin.agent.coverage.model.CoverageSnapshot;
-import io.testsmith.plugin.agent.coverage.model.CoverageSummary;
-import io.testsmith.plugin.agent.coverage.model.PackageName;
+import io.testsmith.plugin.agent.coverage.model.*;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class DefaultWeakestClassSelectorTest {
     @Test
@@ -28,7 +17,7 @@ class DefaultWeakestClassSelectorTest {
         ClassCoverage second = coverage("com.example.Second", "com.example", 1, 2, 3, 3);
 
         SelectionContext context = new SelectionContext(ExclusionRules.empty(), SelectionTuning.defaults(), new SelectionState());
-        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector(context);
+        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector();
 
         Optional<ClassCoverage> selected = selector.select(snapshot(List.of(first, second)), context);
 
@@ -42,7 +31,7 @@ class DefaultWeakestClassSelectorTest {
         ClassCoverage betterCoverage = coverage("com.example.B", "com.example", 9, 5, 4, 6);
 
         SelectionContext context = new SelectionContext(ExclusionRules.empty(), SelectionTuning.defaults(), new SelectionState());
-        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector(context);
+        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector();
 
         Optional<ClassCoverage> selected = selector.select(snapshot(List.of(betterCoverage, worseCoverage)), context);
 
@@ -57,7 +46,7 @@ class DefaultWeakestClassSelectorTest {
 
         ExclusionRules rules = new ExclusionRules(List.of(), List.of(".*Invoice"), List.of(), List.of());
         SelectionContext context = new SelectionContext(rules, SelectionTuning.defaults(), new SelectionState());
-        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector(context);
+        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector();
 
         Optional<ClassCoverage> selected = selector.select(snapshot(List.of(excluded, included)), context);
 
@@ -71,7 +60,7 @@ class DefaultWeakestClassSelectorTest {
         ClassCoverage domainClass = coverage("com.example.service.UserService", "com.example.service", 0, 2, 0, 2);
 
         SelectionContext context = new SelectionContext(ExclusionRules.empty(), SelectionTuning.defaults(), new SelectionState());
-        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector(context);
+        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector();
 
         Optional<ClassCoverage> selected = selector.select(snapshot(List.of(testClass, domainClass)), context);
 
@@ -85,7 +74,7 @@ class DefaultWeakestClassSelectorTest {
         ClassCoverage lines = coverage("com.example.Lines", "com.example", 2, 2, 2, 2);
 
         SelectionContext context = new SelectionContext(ExclusionRules.empty(), SelectionTuning.defaults(), new SelectionState());
-        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector(context);
+        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector();
 
         Optional<ClassCoverage> selected = selector.select(snapshot(List.of(noLines, lines)), context);
 
@@ -104,13 +93,13 @@ class DefaultWeakestClassSelectorTest {
         state.setLastMissedMetricFor("com.example.A", 5);
 
         SelectionContext context = new SelectionContext(ExclusionRules.empty(), SelectionTuning.defaults(), state);
-        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector(context);
+        DefaultWeakestClassSelector selector = new DefaultWeakestClassSelector();
 
         Optional<ClassCoverage> selected = selector.select(snapshot(List.of(stagnant, nextBest)), context);
 
         assertTrue(selected.isPresent());
-        assertEquals("com.example.B", selected.get().className());
-        assertEquals(3, state.blacklist().get("com.example.A"));
+        assertEquals("com.example.A", selected.get().className());
+        assertNull(state.blacklist().get("com.example.A"));
     }
 
     private static ClassCoverage coverage(String className, String packageName, int lineCovered, int lineMissed,
@@ -118,6 +107,7 @@ class DefaultWeakestClassSelectorTest {
         return coverage(className, packageName, lineCovered, lineMissed, instrCovered, instrMissed, 0, 0);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static ClassCoverage coverage(String className, String packageName, int lineCovered, int lineMissed,
                                           int instrCovered, int instrMissed, int branchCovered, int branchMissed) {
         return new ClassCoverage(

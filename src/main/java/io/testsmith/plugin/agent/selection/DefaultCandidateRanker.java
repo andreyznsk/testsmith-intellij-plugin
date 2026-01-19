@@ -8,11 +8,12 @@ import java.util.Locale;
 public final class DefaultCandidateRanker {
     public Comparator<ClassCoverage> comparator(SelectionTuning tuning) {
         return Comparator
-                .comparingInt((ClassCoverage c) -> missedMetric(c)).reversed()
-                .thenComparingDouble(this::coverageRatio)
-                .thenComparingInt(ClassCoverage::branchMissed).reversed()
-                .thenComparingInt(c -> domainBias(c, tuning)).reversed()
+                .comparingInt(this::missedMetric).reversed()
+                .thenComparingDouble(this::coverageRatio)          // меньше ratio = хуже = выше приоритет (asc ок)
+                .thenComparing(Comparator.comparingInt(ClassCoverage::branchMissed).reversed())
+                .thenComparing(Comparator.comparingInt((ClassCoverage c) -> domainBias(c, tuning)).reversed())
                 .thenComparing(ClassCoverage::className);
+
     }
 
     public int missedMetric(ClassCoverage coverage) {

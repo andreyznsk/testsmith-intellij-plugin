@@ -18,14 +18,11 @@ import java.util.zip.CRC32;
  * module-info/package-info, and classes without executable misses.</p>
  */
 public final class DefaultWeakestClassSelector implements WeakestClassSelector {
-    private final DefaultCandidateFilter filter;
     private final DefaultCandidateRanker ranker;
     private final DefaultStagnationGuard stagnationGuard;
 
-    public DefaultWeakestClassSelector(SelectionContext context) {
-        Objects.requireNonNull(context, "context must not be null");
+    public DefaultWeakestClassSelector() {
         this.ranker = new DefaultCandidateRanker();
-        this.filter = new DefaultCandidateFilter(context.exclusions());
         this.stagnationGuard = new DefaultStagnationGuard(ranker);
     }
 
@@ -35,6 +32,7 @@ public final class DefaultWeakestClassSelector implements WeakestClassSelector {
         Objects.requireNonNull(context, "context must not be null");
 
         SelectionState state = context.state();
+        DefaultCandidateFilter filter = new DefaultCandidateFilter(context.exclusions());
         state.decrementBlacklist();
 
         List<ClassCoverage> candidates = snapshot.classes().values().stream()

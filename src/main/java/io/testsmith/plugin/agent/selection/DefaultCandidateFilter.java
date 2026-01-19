@@ -49,15 +49,11 @@ public final class DefaultCandidateFilter {
         }
 
         boolean noLineMisses = coverage.lineMissed() == 0 || coverage.lineMissed() == -1;
-        if (noLineMisses && coverage.instrMissed() == 0) {
-            return false;
-        }
-
-        return true;
+        return !noLineMisses || coverage.instrMissed() != 0;
     }
 
     private static boolean isTestClass(String simpleName, String lowerClassName, String lowerPackage) {
-        if (lowerPackage.contains(".test")) {
+        if (lowerPackage.contains(".test.")) {
             return true;
         }
         if (lowerClassName.contains("e2e")) {

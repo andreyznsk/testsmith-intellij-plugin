@@ -36,7 +36,7 @@ public final class DefaultStagnationGuard {
         if (!className.equals(state.lastSelectedClass())) {
             return false;
         }
-        if (state.sameClassRepeatCount() < tuning.maxSameClassRepeats()) {
+        if (state.sameClassRepeatCount() <= tuning.maxSameClassRepeats()) {
             return false;
         }
         Integer previousMissed = state.lastMissedMetricFor(className);
