@@ -16,8 +16,12 @@ class ClassCoverageTest {
                 new PackageName("com.example"),
                 5,
                 3,
-                1,
-                Set.of(1)
+                0,
+                0,
+                0,
+                0,
+                Set.of(1),
+                null
         ));
     }
 
@@ -28,8 +32,12 @@ class ClassCoverageTest {
                 new PackageName("com.example"),
                 2,
                 0,
-                2,
-                Set.of(1)
+                1,
+                1,
+                0,
+                0,
+                Set.of(1),
+                null
         ));
     }
 
@@ -42,14 +50,34 @@ class ClassCoverageTest {
         ClassCoverage coverage = new ClassCoverage(
                 new ClassId("com.example.Foo"),
                 new PackageName("com.example"),
-                2,
                 0,
                 2,
-                missedLines
+                1,
+                1,
+                0,
+                0,
+                missedLines,
+                "Foo.java"
         );
 
         missedLines.add(3);
 
         assertFalse(coverage.missedLineNumbers().contains(3));
+    }
+
+    @Test
+    void allowsMissingLineCoverageWithEmptyMissedLines() {
+        new ClassCoverage(
+                new ClassId("com.example.NoLines"),
+                new PackageName("com.example"),
+                -1,
+                -1,
+                2,
+                4,
+                0,
+                0,
+                Set.of(),
+                null
+        );
     }
 }
