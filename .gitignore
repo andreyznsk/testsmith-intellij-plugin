@@ -65,8 +65,6 @@ build/idea/
 jacoco/
 coverage/
 *.exec
-!src/main/java/io/testsmith/plugin/coverage/
-!src/test/java/io/testsmith/plugin/coverage/
 
 ############################################################
 # Temporary files

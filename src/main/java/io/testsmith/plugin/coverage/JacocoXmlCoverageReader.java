@@ -51,7 +51,7 @@ public final class JacocoXmlCoverageReader implements CoverageReader {
                             ClassCoverage coverage = new ClassCoverage(fqcn, currentLineCoverage);
                             packages
                                 .computeIfAbsent(packageName, key -> new LinkedHashMap<>())
-                                .put(fqcn, coverage);
+                                .put(currentClass, coverage);
                         }
                         currentClass = null;
                         currentLineCoverage = null;
@@ -77,7 +77,12 @@ public final class JacocoXmlCoverageReader implements CoverageReader {
     }
 
     private static int parseNonNegativeInt(String value, String name) {
-        int parsed = Integer.parseInt(value);
+        int parsed;
+        try {
+            parsed = Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("Missing attribute 'missed' on :" + name);
+        }
         if (parsed < 0) {
             throw new IllegalArgumentException(name + " must be >= 0");
         }

@@ -31,7 +31,7 @@ class JacocoXmlCoverageReaderTest {
         ClassCoverage orderService = snapshot.packages()
             .get("com.acme.service")
             .classes()
-            .get("com.acme.service.OrderService");
+            .get("OrderService");
         assertNotNull(orderService);
         assertEquals(7, orderService.lineCoverage().missed());
         assertEquals(3, orderService.lineCoverage().covered());
@@ -44,11 +44,11 @@ class JacocoXmlCoverageReaderTest {
         assertFalse(snapshot.packages()
             .get("com.acme.service")
             .classes()
-            .containsKey("com.acme.service.HasOnlyInstruction"));
+            .containsKey("HasOnlyInstruction"));
         assertTrue(snapshot.packages()
             .get("com.acme.service")
             .classes()
-            .containsKey("com.acme.service.Normal"));
+            .containsKey("Normal"));
     }
 
     @Test
@@ -58,7 +58,7 @@ class JacocoXmlCoverageReaderTest {
         ClassCoverage emptyCoverage = snapshot.packages()
             .get("com.acme.edge")
             .classes()
-            .get("com.acme.edge.EmptyCoverage");
+            .get("EmptyCoverage");
         assertNotNull(emptyCoverage);
         assertEquals(0, emptyCoverage.lineCoverage().total());
         assertEquals(1.0, emptyCoverage.lineCoverage().ratio());

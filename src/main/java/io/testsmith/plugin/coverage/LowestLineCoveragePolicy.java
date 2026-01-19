@@ -13,11 +13,12 @@ public final class LowestLineCoveragePolicy implements TargetSelectionPolicy {
     @Override
     public Optional<ClassCoverage> select(CoverageSnapshot snapshot) {
         return snapshot.packages().values().stream()
-            .flatMap(pkg -> pkg.classes().values().stream())
-            .filter(filter::include)
-            .min(Comparator
-                .comparingDouble((ClassCoverage coverage) -> coverage.lineCoverage().ratio())
-                .thenComparing(Comparator.comparingInt((ClassCoverage coverage) -> coverage.lineCoverage().missed())
-                    .reversed()));
+                .flatMap(pkg -> pkg.classes().values().stream())
+                .filter(filter::include)
+                .min(Comparator
+                        .comparingDouble((ClassCoverage coverage) -> coverage.lineCoverage().ratio())
+                        .thenComparing(Comparator.comparingInt((ClassCoverage coverage) -> coverage.lineCoverage().missed())
+                                .reversed())
+                        .thenComparing(ClassCoverage::className));
     }
 }
