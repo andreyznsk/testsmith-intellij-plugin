@@ -26,8 +26,8 @@ final class DefaultProcessExecutor implements ProcessExecutor {
         builder.environment().putAll(env);
 
         String stdout = "";
-        String stderr;
-        int exitCode;
+        String stderr = "";
+        int exitCode = -1;
         boolean timedOut = false;
 
         try {
@@ -44,7 +44,11 @@ final class DefaultProcessExecutor implements ProcessExecutor {
                 timedOut = true;
                 process.destroyForcibly();
                 process.waitFor(JOIN_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-                exitCode = process.exitValue(); // try/catch IllegalThreadStateException
+                try {
+                    exitCode = process.exitValue();
+                } catch (IllegalThreadStateException e) {
+                    exitCode = -1;
+                }
             } else {
                 exitCode = process.exitValue();
             }
