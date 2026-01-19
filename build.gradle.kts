@@ -20,6 +20,11 @@ dependencies {
         create("IC", "2025.1")
         bundledPlugin("com.intellij.java")
     }
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 intellijPlatform {
