@@ -85,6 +85,40 @@ class GradleTestRunnerTest {
     }
 
     @Test
+    void usesCmdLauncherWhenGradlewBatPresent(@TempDir Path tempDir) throws Exception {
+        // simulate Windows Gradle wrapper
+        Path gradlewBat = tempDir.resolve("gradlew.bat");
+        Files.writeString(gradlewBat, "@echo off");
+
+        FakeExecutor executor = new FakeExecutor(new ExecResult(0, "", "", false));
+        GradleTestRunner runner = new GradleTestRunner(true, executor);
+
+        TestRunRequest request = new TestRunRequest(
+                TestRunMode.VERIFY_TARGET,
+                new TestTarget("com.example.MyTest", null),
+                tempDir,
+                Duration.ofSeconds(5),
+                Map.of(),
+                List.of(),
+                null
+        );
+
+        runner.run(request);
+
+        List<String> command = executor.command();
+
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        if (isWindows) {
+            assertTrue(command.size() >= 3, "command must contain launcher + arguments");
+            assertEquals("cmd", command.get(0));
+            assertEquals("/c", command.get(1));
+            assertEquals("gradlew.bat", command.get(2));
+        } else {
+            assertEquals("gradle", command.get(0));
+        }
+    }
+
+    @Test
     void classifiesCompilationFailure(@TempDir Path tempDir) {
         FakeExecutor executor = new FakeExecutor(
                 new ExecResult(1, "Compilation failed", "", false)
@@ -174,8 +208,7 @@ class GradleTestRunnerTest {
 
     @Test
     void verifyTargetRequiresTarget(@TempDir Path tempDir) {
-        GradleTestRunner runner = new GradleTestRunner(true, new FakeExecutor(new ExecResult(0, "", "", false)));
-        TestRunRequest request = new TestRunRequest(
+        assertThrows(IllegalArgumentException.class, () -> new TestRunRequest(
                 TestRunMode.VERIFY_TARGET,
                 null,
                 tempDir,
@@ -183,15 +216,12 @@ class GradleTestRunnerTest {
                 Map.of(),
                 List.of(),
                 null
-        );
-
-        assertThrows(IllegalArgumentException.class, () -> runner.run(request));
+        ));
     }
 
     @Test
     void fullSuiteRequiresJacocoPath(@TempDir Path tempDir) {
-        GradleTestRunner runner = new GradleTestRunner(true, new FakeExecutor(new ExecResult(0, "", "", false)));
-        TestRunRequest request = new TestRunRequest(
+        assertThrows(IllegalArgumentException.class, () -> new TestRunRequest(
                 TestRunMode.FULL_SUITE_COVERAGE,
                 null,
                 tempDir,
@@ -199,9 +229,7 @@ class GradleTestRunnerTest {
                 Map.of(),
                 List.of(),
                 null
-        );
-
-        assertThrows(IllegalArgumentException.class, () -> runner.run(request));
+        ));
     }
 
     @Test
