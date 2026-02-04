@@ -1,12 +1,14 @@
 package io.testsmith.plugin.testrunner;
 
+import io.testsmith.plugin.testrunner.model.TestExecutionPhase;
+import io.testsmith.plugin.testrunner.model.TestExecutionResult;
+import io.testsmith.plugin.testrunner.model.TestExecutionStatus;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 public final class MavenTestRunner implements TestRunner {
@@ -27,14 +29,12 @@ public final class MavenTestRunner implements TestRunner {
     }
 
     @Override
-    public TestRunResult run(TestRunRequest request) {
+    public TestExecutionResult run(TestRunRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         Instant start = Instant.now();
         String stdout = "";
         String stderr = "";
         int exitCode = -1;
-        Optional<TestFailureType> failureType = Optional.empty();
-        Optional<String> failureSummary = Optional.empty();
         List<String> command = buildCommand(request);
 
         ExecResult execResult = processExecutor.exec(
@@ -46,36 +46,57 @@ public final class MavenTestRunner implements TestRunner {
         stdout = execResult.stdout();
         stderr = execResult.stderr();
         exitCode = execResult.exitCode();
-        if (execResult.timedOut()) {
-            failureType = Optional.of(TestFailureType.INFRA_FAILURE);
-            failureSummary = Optional.of("Process timed out after " + request.timeout().toSeconds() + "s");
-        }
-
-        if (failureType.isEmpty() && exitCode != 0) {
-            String combined = stdout + "\n" + stderr;
-            TestFailureType classified = classifyFailure(combined);
-            failureType = Optional.of(classified);
-            failureSummary = Optional.ofNullable(summaryFromOutput(combined));
-        }
-
-        if (failureType.isEmpty() && request.mode() == TestRunMode.FULL_SUITE_COVERAGE) {
-            if (!Files.exists(request.jacocoXmlPath())) {
-                failureType = Optional.of(TestFailureType.INFRA_FAILURE);
-                failureSummary = Optional.of("JaCoCo XML not found at " + request.jacocoXmlPath());
-            }
-        }
 
         Duration duration = Duration.between(start, Instant.now());
-        boolean success = failureType.isEmpty();
-        return new TestRunResult(
-                success,
-                exitCode,
-                duration,
+        TestExecutionPhase phase = toPhase(request.mode());
+        if (execResult.timedOut()) {
+            return new TestExecutionResult(
+                    phase,
+                    TestExecutionStatus.TIMEOUT,
+                    null,
+                    null,
+                    "Process timed out after " + request.timeout().toSeconds() + "s",
+                    stdout,
+                    stderr,
+                    duration
+            );
+        }
+        if (exitCode == 0) {
+            if (request.mode() == TestRunMode.FULL_SUITE_COVERAGE && !Files.exists(request.jacocoXmlPath())) {
+                return new TestExecutionResult(
+                        phase,
+                        TestExecutionStatus.INFRASTRUCTURE_ERROR,
+                        null,
+                        null,
+                        "JaCoCo XML not found at " + request.jacocoXmlPath(),
+                        stdout,
+                        stderr,
+                        duration
+                );
+            }
+            return new TestExecutionResult(
+                    phase,
+                    TestExecutionStatus.SUCCESS,
+                    null,
+                    null,
+                    null,
+                    stdout,
+                    stderr,
+                    duration
+            );
+        }
+
+        String combined = stdout + "\n" + stderr;
+        TestExecutionStatus status = classifyFailure(combined);
+        return new TestExecutionResult(
+                phase,
+                status,
+                null,
+                null,
+                summaryFromOutput(combined),
                 stdout,
                 stderr,
-                failureType,
-                failureSummary,
-                command
+                duration
         );
     }
 
@@ -93,17 +114,29 @@ public final class MavenTestRunner implements TestRunner {
         return List.copyOf(args);
     }
 
-    private TestFailureType classifyFailure(String output) {
-        if (containsAny(output, "COMPILATION ERROR", "Compilation failure")) {
-            return TestFailureType.COMPILATION_FAILURE;
+    private TestExecutionStatus classifyFailure(String output) {
+        String normalized = output.toLowerCase();
+        if (containsAny(normalized, "compilation error", "compilation failure")) {
+            return TestExecutionStatus.COMPILATION_FAILED;
         }
-        if (output.contains("Failed to execute goal") && output.contains("maven-compiler-plugin")) {
-            return TestFailureType.COMPILATION_FAILURE;
+        if (normalized.contains("failed to execute goal") && normalized.contains("maven-compiler-plugin")) {
+            return TestExecutionStatus.COMPILATION_FAILED;
         }
-        if (containsAny(output, "Tests run:", "There are test failures", "Failed tests:", "Error(s):")) {
-            return TestFailureType.TEST_FAILURE;
+        if (containsAny(normalized, "tests run:", "there are test failures", "failed tests:", "error(s):")) {
+            return TestExecutionStatus.TEST_FAILED;
         }
-        return TestFailureType.INFRA_FAILURE;
+        if (containsAny(normalized,
+                "could not resolve dependencies",
+                "could not resolve",
+                "no such file or directory",
+                "unknownhostexception",
+                "permission denied",
+                "not found",
+                "failed to read artifact descriptor",
+                "could not transfer artifact")) {
+            return TestExecutionStatus.INFRASTRUCTURE_ERROR;
+        }
+        return TestExecutionStatus.TEST_FAILED;
     }
 
     private boolean containsAny(String output, String... needles) {
@@ -139,5 +172,11 @@ public final class MavenTestRunner implements TestRunner {
     private boolean isFailureSignal(String line) {
         String upper = line.toUpperCase();
         return upper.contains("ERROR") || upper.contains("FAILURE") || upper.contains("COMPILATION");
+    }
+
+    private TestExecutionPhase toPhase(TestRunMode mode) {
+        return mode == TestRunMode.VERIFY_TARGET
+                ? TestExecutionPhase.VERIFY_TARGET
+                : TestExecutionPhase.FULL_SUITE_COVERAGE;
     }
 }

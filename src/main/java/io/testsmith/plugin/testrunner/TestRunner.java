@@ -1,5 +1,7 @@
 package io.testsmith.plugin.testrunner;
 
+import io.testsmith.plugin.testrunner.model.TestExecutionResult;
+
 public interface TestRunner {
-    TestRunResult run(TestRunRequest request);
+    TestExecutionResult run(TestRunRequest request);
 }

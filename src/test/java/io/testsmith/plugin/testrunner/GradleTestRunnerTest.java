@@ -5,12 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.testsmith.plugin.testrunner.model.TestExecutionStatus;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -134,10 +134,10 @@ class GradleTestRunnerTest {
                 null
         );
 
-        TestRunResult result = runner.run(request);
+        var result = runner.run(request);
 
-        assertFalse(result.success());
-        assertEquals(Optional.of(TestFailureType.COMPILATION_FAILURE), result.failureType());
+        assertFalse(result.isSuccess());
+        assertEquals(TestExecutionStatus.COMPILATION_FAILED, result.status());
     }
 
     @Test
@@ -156,10 +156,10 @@ class GradleTestRunnerTest {
                 null
         );
 
-        TestRunResult result = runner.run(request);
+        var result = runner.run(request);
 
-        assertFalse(result.success());
-        assertEquals(Optional.of(TestFailureType.TEST_FAILURE), result.failureType());
+        assertFalse(result.isSuccess());
+        assertEquals(TestExecutionStatus.TEST_FAILED, result.status());
     }
 
     @Test
@@ -178,10 +178,10 @@ class GradleTestRunnerTest {
                 null
         );
 
-        TestRunResult result = runner.run(request);
+        var result = runner.run(request);
 
-        assertFalse(result.success());
-        assertEquals(Optional.of(TestFailureType.INFRA_FAILURE), result.failureType());
+        assertFalse(result.isSuccess());
+        assertEquals(TestExecutionStatus.INFRASTRUCTURE_ERROR, result.status());
     }
 
     @Test
@@ -199,11 +199,50 @@ class GradleTestRunnerTest {
                 jacocoXml
         );
 
-        TestRunResult result = runner.run(request);
+        var result = runner.run(request);
 
-        assertFalse(result.success());
-        assertEquals(Optional.of(TestFailureType.INFRA_FAILURE), result.failureType());
-        assertTrue(result.failureSummary().orElse("").contains(jacocoXml.toString()));
+        assertFalse(result.isSuccess());
+        assertEquals(TestExecutionStatus.INFRASTRUCTURE_ERROR, result.status());
+        assertTrue(result.failureMessage().contains(jacocoXml.toString()));
+    }
+
+    @Test
+    void timeoutMapsToTimeout(@TempDir Path tempDir) {
+        FakeExecutor executor = new FakeExecutor(new ExecResult(1, "", "", true));
+        GradleTestRunner runner = new GradleTestRunner(true, executor);
+        TestRunRequest request = new TestRunRequest(
+                TestRunMode.VERIFY_TARGET,
+                new TestTarget("com.example.MyTest", null),
+                tempDir,
+                Duration.ofSeconds(5),
+                Map.of(),
+                List.of(),
+                null
+        );
+
+        var result = runner.run(request);
+
+        assertEquals(TestExecutionStatus.TIMEOUT, result.status());
+        assertTrue(result.failureMessage().contains("timed out"));
+    }
+
+    @Test
+    void exitZeroMapsToSuccess(@TempDir Path tempDir) {
+        FakeExecutor executor = new FakeExecutor(new ExecResult(0, "", "", false));
+        GradleTestRunner runner = new GradleTestRunner(true, executor);
+        TestRunRequest request = new TestRunRequest(
+                TestRunMode.VERIFY_TARGET,
+                new TestTarget("com.example.MyTest", null),
+                tempDir,
+                Duration.ofSeconds(5),
+                Map.of(),
+                List.of(),
+                null
+        );
+
+        var result = runner.run(request);
+
+        assertEquals(TestExecutionStatus.SUCCESS, result.status());
     }
 
     @Test
