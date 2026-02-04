@@ -26,6 +26,13 @@ public final class TestTarget {
         return className + "#" + methodName;
     }
 
+    public String toGradleFilter() {
+        if (methodName == null) {
+            return className;
+        }
+        return className + "." + methodName;
+    }
+
     private static String normalize(String value) {
         if (value == null) {
             return null;

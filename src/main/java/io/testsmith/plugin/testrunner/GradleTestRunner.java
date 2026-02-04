@@ -9,19 +9,19 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public final class MavenTestRunner implements TestRunner {
+public final class GradleTestRunner implements TestRunner {
     private final boolean quiet;
     private final ProcessExecutor processExecutor;
 
-    public MavenTestRunner() {
+    public GradleTestRunner() {
         this(true, new DefaultProcessExecutor());
     }
 
-    public MavenTestRunner(boolean quiet) {
+    public GradleTestRunner(boolean quiet) {
         this(quiet, new DefaultProcessExecutor());
     }
 
-    public MavenTestRunner(boolean quiet, ProcessExecutor processExecutor) {
+    public GradleTestRunner(boolean quiet, ProcessExecutor processExecutor) {
         this.quiet = quiet;
         this.processExecutor = Objects.requireNonNull(processExecutor, "processExecutor must not be null");
     }
@@ -29,6 +29,7 @@ public final class MavenTestRunner implements TestRunner {
     @Override
     public TestRunResult run(TestRunRequest request) {
         Objects.requireNonNull(request, "request must not be null");
+        validateRequest(request);
         Instant start = Instant.now();
         String stdout = "";
         String stderr = "";
@@ -81,26 +82,27 @@ public final class MavenTestRunner implements TestRunner {
 
     private List<String> buildCommand(TestRunRequest request) {
         List<String> args = new ArrayList<>();
-        args.add("mvn");
-        if (quiet) {
-            args.add("-q");
-        }
-        args.addAll(request.mavenArgsExtra());
-        if (request.mode() == TestRunMode.VERIFY_TARGET) {
-            args.add("-Dtest=" + request.target().toMavenFilter());
+        args.addAll(selectGradleLauncher(request.projectRoot()));
+        if (quiet && request.mode() == TestRunMode.VERIFY_TARGET) {
+            args.add("--quiet");
         }
         args.add("test");
+        if (request.mode() == TestRunMode.VERIFY_TARGET) {
+            ensureGradleTargetSafe(request.target());
+            args.add("--tests");
+            args.add(request.target().toGradleFilter());
+        }
         return List.copyOf(args);
     }
 
     private TestFailureType classifyFailure(String output) {
-        if (containsAny(output, "COMPILATION ERROR", "Compilation failure")) {
+        String normalized = output.toLowerCase();
+        if (containsAny(normalized, "compilation error", "compilation failed", "compilejava failed", "compiletestjava failed",
+                "compilekotlin failed", "compiletestkotlin failed")) {
             return TestFailureType.COMPILATION_FAILURE;
         }
-        if (output.contains("Failed to execute goal") && output.contains("maven-compiler-plugin")) {
-            return TestFailureType.COMPILATION_FAILURE;
-        }
-        if (containsAny(output, "Tests run:", "There are test failures", "Failed tests:", "Error(s):")) {
+        if (containsAny(normalized, "there were failing tests", "execution failed for task ':test'",
+                "task :test failed", "tests failed", "test failed")) {
             return TestFailureType.TEST_FAILURE;
         }
         return TestFailureType.INFRA_FAILURE;
@@ -138,6 +140,48 @@ public final class MavenTestRunner implements TestRunner {
 
     private boolean isFailureSignal(String line) {
         String upper = line.toUpperCase();
-        return upper.contains("ERROR") || upper.contains("FAILURE") || upper.contains("COMPILATION");
+        return upper.contains("ERROR") || upper.contains("FAILURE") || upper.contains("COMPILATION")
+                || upper.contains("CAUSED BY") || upper.contains("TASK");
+    }
+
+    private void validateRequest(TestRunRequest request) {
+        if (request.mode() == TestRunMode.VERIFY_TARGET && request.target() == null) {
+            throw new IllegalArgumentException("target must be provided for VERIFY_TARGET");
+        }
+        if (request.mode() == TestRunMode.FULL_SUITE_COVERAGE && request.jacocoXmlPath() == null) {
+            throw new IllegalArgumentException("jacocoXmlPath must be provided for FULL_SUITE_COVERAGE");
+        }
+    }
+
+    private List<String> selectGradleLauncher(java.nio.file.Path projectRoot) {
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        java.nio.file.Path wrapper = projectRoot.resolve("gradlew");
+        java.nio.file.Path wrapperBat = projectRoot.resolve("gradlew.bat");
+
+        if (isWindows && Files.exists(wrapperBat)) {
+            return List.of("cmd", "/c", "gradlew.bat");
+        }
+        if (!isWindows && Files.exists(wrapper)) {
+            return List.of("./gradlew");
+        }
+        return List.of("gradle");
+    }
+
+    private void ensureGradleTargetSafe(TestTarget target) {
+        if (containsShellChars(target.className()) || containsShellChars(target.methodName())) {
+            throw new IllegalArgumentException("Gradle test target contains unsupported whitespace or quotes");
+        }
+    }
+
+    private boolean containsShellChars(String value) {
+        if (value == null) {
+            return false;
+        }
+        for (char ch : value.toCharArray()) {
+            if (Character.isWhitespace(ch) || ch == '"' || ch == '\'') {
+                return true;
+            }
+        }
+        return false;
     }
 }

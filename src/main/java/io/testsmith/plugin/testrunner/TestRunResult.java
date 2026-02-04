@@ -1,6 +1,7 @@
 package io.testsmith.plugin.testrunner;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -12,6 +13,7 @@ public final class TestRunResult {
     private final String stderr;
     private final Optional<TestFailureType> failureType;
     private final Optional<String> failureSummary;
+    private final List<String> command;
 
     public TestRunResult(
             boolean success,
@@ -20,7 +22,8 @@ public final class TestRunResult {
             String stdout,
             String stderr,
             Optional<TestFailureType> failureType,
-            Optional<String> failureSummary
+            Optional<String> failureSummary,
+            List<String> command
     ) {
         this.success = success;
         this.exitCode = exitCode;
@@ -29,6 +32,7 @@ public final class TestRunResult {
         this.stderr = stderr == null ? "" : stderr;
         this.failureType = failureType == null ? Optional.empty() : failureType;
         this.failureSummary = failureSummary == null ? Optional.empty() : failureSummary;
+        this.command = command == null ? List.of() : List.copyOf(command);
     }
 
     public boolean success() {
@@ -57,5 +61,9 @@ public final class TestRunResult {
 
     public Optional<String> failureSummary() {
         return failureSummary;
+    }
+
+    public List<String> command() {
+        return command;
     }
 }
