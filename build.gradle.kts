@@ -21,7 +21,6 @@ dependencies {
         bundledPlugin("com.intellij.java")
     }
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
-    testImplementation("junit:junit:4.13.2")
 }
 
 tasks.test {
