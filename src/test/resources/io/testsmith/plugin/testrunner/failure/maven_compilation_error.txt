@@ -1,0 +1,7 @@
+[INFO] --- maven-compiler-plugin:3.8.1:compile (default-compile) @ demo ---
+[ERROR] COMPILATION ERROR :
+[INFO] -------------------------------------------------------------
+[ERROR] /work/src/main/java/com/example/App.java:[10,5] error: cannot find symbol
+[ERROR]   symbol:   variable foo
+[ERROR]   location: class com.example.App
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.8.1:compile (default-compile) on project demo: Compilation failure
