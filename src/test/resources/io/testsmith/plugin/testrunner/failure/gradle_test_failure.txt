@@ -1,0 +1,5 @@
+> Task :test FAILED
+com.example.MyTest > testOne FAILED
+com.example.OtherTest > testTwo FAILED
+
+There were failing tests. See the report at: file:///work/build/reports/tests/test/index.html

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.testsmith.plugin.testrunner.model.TestExecutionStatus;
+import io.testsmith.plugin.testrunner.failure.FailureKind;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -186,7 +187,7 @@ class GradleTestRunnerTest {
 
     @Test
     void fullSuiteRequiresJacocoXml(@TempDir Path tempDir) {
-        FakeExecutor executor = new FakeExecutor(new ExecResult(0, "", "", false));
+        FakeExecutor executor = new FakeExecutor(new ExecResult(0, "out", "", false));
         GradleTestRunner runner = new GradleTestRunner(true, executor);
         Path jacocoXml = tempDir.resolve("jacoco.xml");
         TestRunRequest request = new TestRunRequest(
@@ -204,6 +205,10 @@ class GradleTestRunnerTest {
         assertFalse(result.isSuccess());
         assertEquals(TestExecutionStatus.INFRASTRUCTURE_ERROR, result.status());
         assertTrue(result.failureMessage().contains(jacocoXml.toString()));
+        assertEquals(FailureKind.INFRASTRUCTURE, result.failureReport().kind());
+        assertTrue(result.failureReport().summary().contains(jacocoXml.toString()));
+        assertTrue(result.failureReport().rootCause().contains(jacocoXml.toString()));
+        assertFalse(result.failureReport().evidence().isEmpty());
     }
 
     @Test

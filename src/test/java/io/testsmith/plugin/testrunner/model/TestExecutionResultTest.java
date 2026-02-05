@@ -18,6 +18,7 @@ class TestExecutionResultTest {
                 null,
                 null,
                 null,
+                null,
                 "out",
                 "err",
                 Duration.ofSeconds(1)
@@ -36,6 +37,7 @@ class TestExecutionResultTest {
                 null,
                 null,
                 "boom",
+                null,
                 "out",
                 "err",
                 Duration.ofSeconds(1)
@@ -54,6 +56,7 @@ class TestExecutionResultTest {
                 null,
                 null,
                 "timeout",
+                null,
                 "out",
                 "err",
                 Duration.ofSeconds(1)
@@ -72,6 +75,7 @@ class TestExecutionResultTest {
                 null,
                 null,
                 "should be null",
+                null,
                 "out",
                 "err",
                 Duration.ofSeconds(1)
@@ -86,6 +90,7 @@ class TestExecutionResultTest {
                 null,
                 null,
                 "boom",
+                null,
                 null,
                 null,
                 Duration.ofSeconds(1)
@@ -103,6 +108,7 @@ class TestExecutionResultTest {
                 null,
                 null,
                 "boom",
+                null,
                 "out",
                 "err",
                 null

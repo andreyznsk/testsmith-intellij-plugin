@@ -1,5 +1,6 @@
 package io.testsmith.plugin.testrunner.model;
 
+import io.testsmith.plugin.testrunner.failure.FailureReport;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -9,6 +10,7 @@ public record TestExecutionResult(
         TestFailureKind failureKind,
         String failedTest,
         String failureMessage,
+        FailureReport failureReport,
         String stdout,
         String stderr,
         Duration duration
@@ -20,7 +22,7 @@ public record TestExecutionResult(
         stdout = stdout == null ? "" : stdout;
         stderr = stderr == null ? "" : stderr;
         if (status == TestExecutionStatus.SUCCESS) {
-            if (failureKind != null || failedTest != null || failureMessage != null) {
+            if (failureKind != null || failedTest != null || failureMessage != null || failureReport != null) {
                 throw new IllegalArgumentException("Success results must not include failure details");
             }
         }

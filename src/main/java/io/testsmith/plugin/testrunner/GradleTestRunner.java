@@ -3,29 +3,42 @@ package io.testsmith.plugin.testrunner;
 import io.testsmith.plugin.testrunner.model.TestExecutionPhase;
 import io.testsmith.plugin.testrunner.model.TestExecutionResult;
 import io.testsmith.plugin.testrunner.model.TestExecutionStatus;
+import io.testsmith.plugin.testrunner.failure.DefaultFailureExtractor;
+import io.testsmith.plugin.testrunner.failure.FailureExtractor;
+import io.testsmith.plugin.testrunner.failure.FailureKind;
+import io.testsmith.plugin.testrunner.failure.FailureReport;
+import io.testsmith.plugin.testrunner.failure.LogSlicer;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 public final class GradleTestRunner implements TestRunner {
     private final boolean quiet;
     private final ProcessExecutor processExecutor;
+    private final FailureExtractor failureExtractor;
 
     public GradleTestRunner() {
-        this(true, new DefaultProcessExecutor());
+        this(true, new DefaultProcessExecutor(), new DefaultFailureExtractor());
     }
 
     public GradleTestRunner(boolean quiet) {
-        this(quiet, new DefaultProcessExecutor());
+        this(quiet, new DefaultProcessExecutor(), new DefaultFailureExtractor());
     }
 
     public GradleTestRunner(boolean quiet, ProcessExecutor processExecutor) {
+        this(quiet, processExecutor, new DefaultFailureExtractor());
+    }
+
+    public GradleTestRunner(boolean quiet, ProcessExecutor processExecutor, FailureExtractor failureExtractor) {
         this.quiet = quiet;
         this.processExecutor = Objects.requireNonNull(processExecutor, "processExecutor must not be null");
+        this.failureExtractor = Objects.requireNonNull(failureExtractor, "failureExtractor must not be null");
     }
 
     @Override
@@ -51,12 +64,14 @@ public final class GradleTestRunner implements TestRunner {
         Duration duration = Duration.between(start, Instant.now());
         TestExecutionPhase phase = toPhase(request.mode());
         if (execResult.timedOut()) {
+            FailureReport failureReport = failureExtractor.extract(stdout, stderr, exitCode, true);
             return new TestExecutionResult(
                     phase,
                     TestExecutionStatus.TIMEOUT,
                     null,
                     null,
                     "Process timed out after " + request.timeout().toSeconds() + "s",
+                    failureReport,
                     stdout,
                     stderr,
                     duration
@@ -64,12 +79,14 @@ public final class GradleTestRunner implements TestRunner {
         }
         if (exitCode == 0) {
             if (request.mode() == TestRunMode.FULL_SUITE_COVERAGE && !Files.exists(request.jacocoXmlPath())) {
+                FailureReport failureReport = jacocoFailureReport(stdout, stderr, request.jacocoXmlPath());
                 return new TestExecutionResult(
                         phase,
                         TestExecutionStatus.INFRASTRUCTURE_ERROR,
                         null,
                         null,
                         "JaCoCo XML not found at " + request.jacocoXmlPath(),
+                        failureReport,
                         stdout,
                         stderr,
                         duration
@@ -81,6 +98,7 @@ public final class GradleTestRunner implements TestRunner {
                     null,
                     null,
                     null,
+                    null,
                     stdout,
                     stderr,
                     duration
@@ -88,13 +106,19 @@ public final class GradleTestRunner implements TestRunner {
         }
 
         String combined = stdout + "\n" + stderr;
-        TestExecutionStatus status = classifyFailure(combined);
+        FailureReport failureReport = failureExtractor.extract(stdout, stderr, exitCode, false);
+        TestExecutionStatus status = toStatus(failureReport.kind());
+        String failureMessage = failureReport.summary();
+        if (failureMessage == null || failureMessage.isBlank()) {
+            failureMessage = summaryFromOutput(combined);
+        }
         return new TestExecutionResult(
                 phase,
                 status,
                 null,
                 null,
-                summaryFromOutput(combined),
+                failureMessage,
+                failureReport,
                 stdout,
                 stderr,
                 duration
@@ -116,45 +140,30 @@ public final class GradleTestRunner implements TestRunner {
         return List.copyOf(args);
     }
 
-    private TestExecutionStatus classifyFailure(String output) {
-        String normalized = output.toLowerCase();
-        if (containsAny(normalized,
-                "compilation error",
-                "compilation failed",
-                "compilejava failed",
-                "compiletestjava failed",
-                "compilekotlin failed",
-                "compiletestkotlin failed")) {
-            return TestExecutionStatus.COMPILATION_FAILED;
-        }
-        if (containsAny(normalized,
-                "there were failing tests",
-                "execution failed for task ':test'",
-                "task :test failed",
-                "tests failed",
-                "test failed")) {
-            return TestExecutionStatus.TEST_FAILED;
-        }
-        if (containsAny(normalized,
-                "could not resolve dependencies",
-                "could not resolve all files",
-                "could not resolve",
-                "no such file or directory",
-                "permission denied",
-                "unknownhostexception",
-                "not found")) {
-            return TestExecutionStatus.INFRASTRUCTURE_ERROR;
-        }
-        return TestExecutionStatus.TEST_FAILED;
+    private TestExecutionStatus toStatus(FailureKind kind) {
+        return switch (kind) {
+            case TIMEOUT -> TestExecutionStatus.TIMEOUT;
+            case COMPILATION -> TestExecutionStatus.COMPILATION_FAILED;
+            case TEST_FAILURE -> TestExecutionStatus.TEST_FAILED;
+            case INFRASTRUCTURE -> TestExecutionStatus.INFRASTRUCTURE_ERROR;
+            case NONE -> TestExecutionStatus.TEST_FAILED;
+        };
     }
 
-    private boolean containsAny(String output, String... needles) {
-        for (String needle : needles) {
-            if (output.contains(needle)) {
-                return true;
-            }
+    private FailureReport jacocoFailureReport(String stdout, String stderr, Path jacocoXmlPath) {
+        String message = "JaCoCo XML not found at " + jacocoXmlPath;
+        List<String> evidence = LogSlicer.tail(stdout, stderr, 30);
+        if (evidence.isEmpty()) {
+            evidence = List.of(message);
         }
-        return false;
+        return new FailureReport(
+                FailureKind.INFRASTRUCTURE,
+                message,
+                message,
+                List.of(),
+                evidence,
+                Map.of()
+        );
     }
 
     private String summaryFromOutput(String output) {
