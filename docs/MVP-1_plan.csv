@@ -15,7 +15,7 @@ Iteration 2,11,Maven test runner,2,1,Process runner,done
 Iteration 2,12,Gradle test runner,2,1,Process runner,done
 Iteration 2,13,Test execution result model,1,0.5,Exit codes + output,done
 Iteration 2,14,Failure extraction,2,1,Stacktrace parsing,done
-Iteration 2,15,Stagnation detection,1,0.5,Coverage delta logic
+Iteration 2,15,Stagnation detection,1,0.5,Coverage delta logic,done
 
 Iteration 3,16,LLM client abstraction,1,0.5,Unified interface
 Iteration 3,17,Ollama provider,2,1,Deterministic config
