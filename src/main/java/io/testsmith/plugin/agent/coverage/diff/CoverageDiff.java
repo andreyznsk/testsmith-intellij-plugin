@@ -19,6 +19,6 @@ public record CoverageDiff(CoverageSnapshot before, CoverageSnapshot after) {
     }
 
     public boolean hasProgress() {
-        return deltaCoveredLines() > 0;
+        return deltaCoveredLines() > 0 || deltaMissedLines() < 0;
     }
 }
