@@ -1,0 +1,7 @@
+> Task :compileJava FAILED
+/work/src/main/java/com/example/App.java:12: error: cannot find symbol
+    Foo bar = new Foo();
+    ^
+  symbol:   class Foo
+  location: class com.example.App
+Compilation failed; see the compiler error output for details.
