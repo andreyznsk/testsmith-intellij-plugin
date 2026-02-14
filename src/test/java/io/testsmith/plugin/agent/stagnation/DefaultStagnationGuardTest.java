@@ -9,6 +9,7 @@ import io.testsmith.plugin.agent.coverage.model.PackageName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -147,7 +148,7 @@ class DefaultStagnationGuardTest {
                 instrMissed,
                 0,
                 0,
-                lineMissed <= 0 ? Set.of() : Set.of(1),
+                missedLines(lineMissed),
                 className.substring(className.lastIndexOf('.') + 1) + ".java"
         );
     }
@@ -167,7 +168,7 @@ class DefaultStagnationGuardTest {
                 missed,
                 0,
                 0,
-                missed <= 0 ? Set.of() : Set.of(1),
+                missedLines(missed),
                 "Foo.java"
         );
         return new CoverageSnapshot(
@@ -175,5 +176,16 @@ class DefaultStagnationGuardTest {
                 new CoverageSummary(total, covered, missed),
                 Map.of(coverage.classId(), coverage)
         );
+    }
+
+    private static Set<Integer> missedLines(int missed) {
+        if (missed <= 0) {
+            return Set.of();
+        }
+        Set<Integer> result = new LinkedHashSet<>();
+        for (int line = 1; line <= missed; line++) {
+            result.add(line);
+        }
+        return result;
     }
 }
