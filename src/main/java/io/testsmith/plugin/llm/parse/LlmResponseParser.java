@@ -1,0 +1,121 @@
+package io.testsmith.plugin.llm.parse;
+
+import io.testsmith.plugin.llm.api.LlmProtocolException;
+import io.testsmith.plugin.llm.api.LlmResponse;
+import io.testsmith.plugin.llm.api.TestFramework;
+import io.testsmith.plugin.llm.internal.JsonCodec;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Strict parser for the canonical LLM response JSON contract.
+ *
+ * <p>Rules:
+ * <ul>
+ *   <li>Top-level must be a single JSON object with no leading/trailing prose.</li>
+ *   <li>Required fields: testClassFqcn, suggestedFilePath, testFramework, javaSource, notes.</li>
+ *   <li>No unknown top-level fields are allowed.</li>
+ *   <li>javaSource must contain Java source only (no markdown fences).</li>
+ * </ul>
+ */
+public final class LlmResponseParser {
+    private static final String FIELD_TEST_CLASS_FQCN = "testClassFqcn";
+    private static final String FIELD_SUGGESTED_FILE_PATH = "suggestedFilePath";
+    private static final String FIELD_TEST_FRAMEWORK = "testFramework";
+    private static final String FIELD_JAVA_SOURCE = "javaSource";
+    private static final String FIELD_NOTES = "notes";
+
+    public LlmResponse parse(String rawText) {
+        if (rawText == null) {
+            throw new LlmProtocolException("LLM response must not be null");
+        }
+        String trimmed = rawText.trim();
+        if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+            throw new LlmProtocolException("LLM response must be a single JSON object without wrapper text");
+        }
+
+        Object root = JsonCodec.parse(trimmed);
+        if (!(root instanceof Map<?, ?> rawMap)) {
+            throw new LlmProtocolException("Top-level LLM response JSON must be an object");
+        }
+
+        Map<String, Object> payload = castToStringObjectMap(rawMap);
+        ensureExpectedFields(payload);
+
+        String testClassFqcn = requireString(payload, FIELD_TEST_CLASS_FQCN);
+        String suggestedFilePath = requireString(payload, FIELD_SUGGESTED_FILE_PATH);
+        String testFrameworkRaw = requireString(payload, FIELD_TEST_FRAMEWORK);
+        String javaSource = requireString(payload, FIELD_JAVA_SOURCE);
+        List<String> notes = requireStringArray(payload, FIELD_NOTES);
+
+        if (javaSource.contains("```")) {
+            throw new LlmProtocolException("javaSource must not contain markdown code fences");
+        }
+
+        TestFramework testFramework;
+        try {
+            testFramework = TestFramework.valueOf(testFrameworkRaw);
+        } catch (IllegalArgumentException ex) {
+            throw new LlmProtocolException("Unsupported testFramework value: " + testFrameworkRaw, ex);
+        }
+
+        return new LlmResponse(testClassFqcn, suggestedFilePath, testFramework, javaSource, notes);
+    }
+
+    private static void ensureExpectedFields(Map<String, Object> payload) {
+        List<String> required = List.of(
+                FIELD_TEST_CLASS_FQCN,
+                FIELD_SUGGESTED_FILE_PATH,
+                FIELD_TEST_FRAMEWORK,
+                FIELD_JAVA_SOURCE,
+                FIELD_NOTES
+        );
+
+        for (String key : required) {
+            if (!payload.containsKey(key)) {
+                throw new LlmProtocolException("Missing required field: " + key);
+            }
+        }
+
+        for (String key : payload.keySet()) {
+            if (!required.contains(key)) {
+                throw new LlmProtocolException("Unknown field in LLM response: " + key);
+            }
+        }
+    }
+
+    private static Map<String, Object> castToStringObjectMap(Map<?, ?> input) {
+        for (Object key : input.keySet()) {
+            if (!(key instanceof String)) {
+                throw new LlmProtocolException("LLM response object contains a non-string key");
+            }
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cast = (Map<String, Object>) input;
+        return cast;
+    }
+
+    private static String requireString(Map<String, Object> payload, String field) {
+        Object value = payload.get(field);
+        if (!(value instanceof String stringValue)) {
+            throw new LlmProtocolException("Field '" + field + "' must be a string");
+        }
+        return stringValue;
+    }
+
+    private static List<String> requireStringArray(Map<String, Object> payload, String field) {
+        Object value = payload.get(field);
+        if (!(value instanceof List<?> listValue)) {
+            throw new LlmProtocolException("Field '" + field + "' must be an array");
+        }
+        List<String> result = new ArrayList<>(listValue.size());
+        for (Object item : listValue) {
+            if (!(item instanceof String stringItem)) {
+                throw new LlmProtocolException("Field '" + field + "' must contain only strings");
+            }
+            result.add(stringItem);
+        }
+        return List.copyOf(result);
+    }
+}

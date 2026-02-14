@@ -20,6 +20,7 @@ dependencies {
         create("IC", "2025.1")
         bundledPlugin("com.intellij.java")
     }
+    testImplementation("junit:junit:4.13.2")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
 }
 
