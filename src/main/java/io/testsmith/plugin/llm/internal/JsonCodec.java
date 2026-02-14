@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Small dependency-free JSON codec used for strict protocol parsing and payload generation.
@@ -27,6 +28,7 @@ public final class JsonCodec {
     }
 
     public static String toJsonString(String value) {
+        Objects.requireNonNull(value, "JSON string value must not be null");
         StringBuilder sb = new StringBuilder();
         sb.append('"');
         for (int i = 0; i < value.length(); i++) {

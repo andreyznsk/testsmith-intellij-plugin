@@ -9,10 +9,13 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
 final class HttpOllamaApi implements OllamaApi {
+    private static final int MAX_ERROR_BODY_CHARS = 4096;
+
     private final String baseUrl;
     private final String model;
     private final HttpClient httpClient;
@@ -45,7 +48,8 @@ final class HttpOllamaApi implements OllamaApi {
 
         if (httpResponse.statusCode() != 200) {
             throw new LlmTransportException(
-                    "Ollama returned non-200 status: " + httpResponse.statusCode() + " body=" + httpResponse.body()
+                    "Ollama returned non-200 status: " + httpResponse.statusCode() + " body="
+                            + truncate(httpResponse.body(), MAX_ERROR_BODY_CHARS)
             );
         }
 
@@ -57,8 +61,7 @@ final class HttpOllamaApi implements OllamaApi {
         if (!(parsed instanceof Map<?, ?> rawMap)) {
             throw new LlmProtocolException("Ollama response must be a JSON object");
         }
-        @SuppressWarnings("unchecked")
-        Map<String, Object> map = (Map<String, Object>) rawMap;
+        Map<String, Object> map = toStringObjectMap(rawMap);
         Object value = map.get("response");
         if (!(value instanceof String responseText)) {
             throw new LlmProtocolException("Ollama response JSON missing string field 'response'");
@@ -84,5 +87,27 @@ final class HttpOllamaApi implements OllamaApi {
             return value.substring(0, value.length() - 1);
         }
         return value;
+    }
+
+    private static Map<String, Object> toStringObjectMap(Map<?, ?> map) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            Object key = entry.getKey();
+            if (!(key instanceof String keyString)) {
+                throw new LlmProtocolException("Ollama response contains a non-string key");
+            }
+            result.put(keyString, entry.getValue());
+        }
+        return result;
+    }
+
+    private static String truncate(String value, int maxChars) {
+        if (value == null) {
+            return "";
+        }
+        if (value.length() <= maxChars) {
+            return value;
+        }
+        return value.substring(0, maxChars) + "...(truncated)";
     }
 }

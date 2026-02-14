@@ -5,6 +5,7 @@ import io.testsmith.plugin.llm.api.LlmResponse;
 import io.testsmith.plugin.llm.api.TestFramework;
 import io.testsmith.plugin.llm.internal.JsonCodec;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -86,14 +87,15 @@ public final class LlmResponseParser {
     }
 
     private static Map<String, Object> castToStringObjectMap(Map<?, ?> input) {
-        for (Object key : input.keySet()) {
-            if (!(key instanceof String)) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : input.entrySet()) {
+            Object key = entry.getKey();
+            if (!(key instanceof String keyString)) {
                 throw new LlmProtocolException("LLM response object contains a non-string key");
             }
+            result.put(keyString, entry.getValue());
         }
-        @SuppressWarnings("unchecked")
-        Map<String, Object> cast = (Map<String, Object>) input;
-        return cast;
+        return result;
     }
 
     private static String requireString(Map<String, Object> payload, String field) {
@@ -112,7 +114,10 @@ public final class LlmResponseParser {
         List<String> result = new ArrayList<>(listValue.size());
         for (Object item : listValue) {
             if (!(item instanceof String stringItem)) {
-                throw new LlmProtocolException("Field '" + field + "' must contain only strings");
+                throw new LlmProtocolException(
+                        "Field '" + field + "' must contain only strings, but found "
+                                + (item == null ? "null" : item.getClass().getSimpleName())
+                );
             }
             result.add(stringItem);
         }

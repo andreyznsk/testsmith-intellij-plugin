@@ -48,7 +48,9 @@ class LlmResponseParserTest {
 
     @Test
     void rejectsLeadingProseBeforeJson() {
-        String payload = "Here is the result:\n{\"testClassFqcn\":\"A\",\"suggestedFilePath\":\"\",\"testFramework\":\"JUNIT5\",\"javaSource\":\"class A {}\",\"notes\":[]}";
+        String payload = "Here is the result:\n"
+                + "{\"testClassFqcn\":\"A\",\"suggestedFilePath\":\"\",\"testFramework\":\"JUNIT5\","
+                + "\"javaSource\":\"class A {}\",\"notes\":[]}";
         assertThrows(LlmProtocolException.class, () -> parser.parse(payload));
     }
 
@@ -80,6 +82,21 @@ class LlmResponseParserTest {
                   "testFramework": "JUNIT3",
                   "javaSource": "class A {}",
                   "notes": []
+                }
+                """;
+
+        assertThrows(LlmProtocolException.class, () -> parser.parse(payload));
+    }
+
+    @Test
+    void rejectsNotesWithNonStringElements() {
+        String payload = """
+                {
+                  "testClassFqcn": "com.example.SampleTest",
+                  "suggestedFilePath": "",
+                  "testFramework": "JUNIT5",
+                  "javaSource": "class A {}",
+                  "notes": ["ok", 1]
                 }
                 """;
 
