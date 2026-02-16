@@ -17,7 +17,7 @@ Iteration 2,13,Test execution result model,1,0.5,Exit codes + output,done
 Iteration 2,14,Failure extraction,2,1,Stacktrace parsing,done
 Iteration 2,15,Stagnation detection,1,0.5,Coverage delta logic,done
 
-Iteration 3,16,LLM client abstraction,1,0.5,Unified interface
+Iteration 3,16,LLM client abstraction,1,0.5,Unified interface,done
 Iteration 3,17,Ollama provider,2,1,Deterministic config
 Iteration 3,18,Prompt contract schema,2,1,Strict format
 Iteration 3,19,Structured output validation,2,1,JSON schema
