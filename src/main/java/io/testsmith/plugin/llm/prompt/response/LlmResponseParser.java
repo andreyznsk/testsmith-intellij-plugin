@@ -1,4 +1,4 @@
-package io.testsmith.plugin.llm.parse;
+package io.testsmith.plugin.llm.prompt.response;
 
 import io.testsmith.plugin.llm.api.LlmProtocolException;
 import io.testsmith.plugin.llm.api.LlmResponse;
@@ -21,12 +21,6 @@ import java.util.Map;
  * </ul>
  */
 public final class LlmResponseParser {
-    private static final String FIELD_TEST_CLASS_FQCN = "testClassFqcn";
-    private static final String FIELD_SUGGESTED_FILE_PATH = "suggestedFilePath";
-    private static final String FIELD_TEST_FRAMEWORK = "testFramework";
-    private static final String FIELD_JAVA_SOURCE = "javaSource";
-    private static final String FIELD_NOTES = "notes";
-
     public LlmResponse parse(String rawText) {
         if (rawText == null) {
             throw new LlmProtocolException("LLM response must not be null");
@@ -44,11 +38,11 @@ public final class LlmResponseParser {
         Map<String, Object> payload = castToStringObjectMap(rawMap);
         ensureExpectedFields(payload);
 
-        String testClassFqcn = requireString(payload, FIELD_TEST_CLASS_FQCN);
-        String suggestedFilePath = requireString(payload, FIELD_SUGGESTED_FILE_PATH);
-        String testFrameworkRaw = requireString(payload, FIELD_TEST_FRAMEWORK);
-        String javaSource = requireString(payload, FIELD_JAVA_SOURCE);
-        List<String> notes = requireStringArray(payload, FIELD_NOTES);
+        String testClassFqcn = requireString(payload, LlmResponseContractV1.FIELD_TEST_CLASS_FQCN);
+        String suggestedFilePath = requireString(payload, LlmResponseContractV1.FIELD_SUGGESTED_FILE_PATH);
+        String testFrameworkRaw = requireString(payload, LlmResponseContractV1.FIELD_TEST_FRAMEWORK);
+        String javaSource = requireString(payload, LlmResponseContractV1.FIELD_JAVA_SOURCE);
+        List<String> notes = requireStringArray(payload, LlmResponseContractV1.FIELD_NOTES);
 
         if (javaSource.contains("```")) {
             throw new LlmProtocolException("javaSource must not contain markdown code fences");
@@ -66,11 +60,11 @@ public final class LlmResponseParser {
 
     private static void ensureExpectedFields(Map<String, Object> payload) {
         List<String> required = List.of(
-                FIELD_TEST_CLASS_FQCN,
-                FIELD_SUGGESTED_FILE_PATH,
-                FIELD_TEST_FRAMEWORK,
-                FIELD_JAVA_SOURCE,
-                FIELD_NOTES
+                LlmResponseContractV1.FIELD_TEST_CLASS_FQCN,
+                LlmResponseContractV1.FIELD_SUGGESTED_FILE_PATH,
+                LlmResponseContractV1.FIELD_TEST_FRAMEWORK,
+                LlmResponseContractV1.FIELD_JAVA_SOURCE,
+                LlmResponseContractV1.FIELD_NOTES
         );
 
         for (String key : required) {

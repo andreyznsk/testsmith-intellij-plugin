@@ -1,4 +1,4 @@
-package io.testsmith.plugin.llm.parse;
+package io.testsmith.plugin.llm.prompt.response;
 
 import io.testsmith.plugin.llm.api.LlmProtocolException;
 import io.testsmith.plugin.llm.api.TestFramework;
