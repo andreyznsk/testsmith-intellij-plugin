@@ -57,7 +57,9 @@ public final class PromptRenderer {
         joiner.add("- javaSource must not contain markdown fences or wrapper text.");
 
         joiner.add("## Output Contract (MUST FOLLOW)");
-        joiner.add("Return JSON only. No markdown. No explanations.");
+        joiner.add("Return JSON only.");
+        joiner.add("No markdown.");
+        joiner.add("No explanations.");
         joiner.add("Output must be exactly one JSON object with this schema:");
         joiner.add("{");
         joiner.add("  \"" + LlmResponseContractV1.FIELD_TEST_CLASS_FQCN + "\": string,");
