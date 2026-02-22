@@ -41,7 +41,8 @@ public final class DefaultStructuredValidator implements StructuredValidator {
             return ValidationResult.invalid(ValidationErrorType.SEMANTIC_INVALID, "code must not contain markdown fences");
         }
 
-        if (containsProhibitedWrapperText(test.code())) {
+        boolean annotationsAllowed = !context.discoveredAnnotations().isEmpty();
+        if (containsProhibitedWrapperText(test.code(), annotationsAllowed)) {
             return ValidationResult.invalid(ValidationErrorType.SEMANTIC_INVALID, "code contains wrapper prose");
         }
 
@@ -64,7 +65,8 @@ public final class DefaultStructuredValidator implements StructuredValidator {
     }
 
     private static String extractClassName(String code) {
-        var matcher = CLASS_DECLARATION.matcher(code);
+        String withoutComments = removeComments(code);
+        var matcher = CLASS_DECLARATION.matcher(withoutComments);
         return matcher.find() ? matcher.group(1) : null;
     }
 
@@ -72,9 +74,90 @@ public final class DefaultStructuredValidator implements StructuredValidator {
         return code.contains("```");
     }
 
-    private static boolean containsProhibitedWrapperText(String code) {
-        String trimmed = code.stripLeading();
-        return trimmed.startsWith("Here is") || trimmed.startsWith("The following") || trimmed.startsWith("This test");
+    private static boolean containsProhibitedWrapperText(String code, boolean annotationsAllowed) {
+        String normalized = stripLeadingWhitespaceAndComments(code);
+        if (normalized.isEmpty()) {
+            return true;
+        }
+
+        if (normalized.startsWith("package ")
+                || normalized.startsWith("import ")
+                || normalized.startsWith("public ")
+                || normalized.startsWith("class ")) {
+            return false;
+        }
+
+        if (normalized.startsWith("@")) {
+            return !annotationsAllowed;
+        }
+
+        return true;
+    }
+
+    private static String stripLeadingWhitespaceAndComments(String code) {
+        int index = 0;
+        int length = code.length();
+        while (index < length) {
+            while (index < length && Character.isWhitespace(code.charAt(index))) {
+                index++;
+            }
+            if (index >= length) {
+                break;
+            }
+
+            if (index + 1 < length && code.charAt(index) == '/' && code.charAt(index + 1) == '/') {
+                index += 2;
+                while (index < length && code.charAt(index) != '\n') {
+                    index++;
+                }
+                continue;
+            }
+
+            if (index + 1 < length && code.charAt(index) == '/' && code.charAt(index + 1) == '*') {
+                index += 2;
+                while (index + 1 < length && !(code.charAt(index) == '*' && code.charAt(index + 1) == '/')) {
+                    index++;
+                }
+                if (index + 1 >= length) {
+                    return "";
+                }
+                index += 2;
+                continue;
+            }
+
+            break;
+        }
+        return code.substring(index);
+    }
+
+    private static String removeComments(String code) {
+        StringBuilder out = new StringBuilder(code.length());
+        int index = 0;
+        while (index < code.length()) {
+            char current = code.charAt(index);
+            if (current == '/' && index + 1 < code.length()) {
+                char next = code.charAt(index + 1);
+                if (next == '/') {
+                    index += 2;
+                    while (index < code.length() && code.charAt(index) != '\n') {
+                        index++;
+                    }
+                    continue;
+                }
+                if (next == '*') {
+                    index += 2;
+                    while (index + 1 < code.length()
+                            && !(code.charAt(index) == '*' && code.charAt(index + 1) == '/')) {
+                        index++;
+                    }
+                    index = Math.min(index + 2, code.length());
+                    continue;
+                }
+            }
+            out.append(current);
+            index++;
+        }
+        return out.toString();
     }
 
     private static boolean containsProhibitedAssumptions(List<String> assumptions) {

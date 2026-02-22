@@ -76,9 +76,7 @@ public final class PromptRenderer {
         joiner.add("}");
 
         joiner.add("## Failure Example (INVALID)");
-        joiner.add("```json");
-        joiner.add("{\"code\":\"Here is your test...\"}");
-        joiner.add("```");
+        joiner.add("INVALID: {\"code\":\"Here is your test...\"}");
 
         joiner.add("## Valid Example");
         joiner.add("{");
