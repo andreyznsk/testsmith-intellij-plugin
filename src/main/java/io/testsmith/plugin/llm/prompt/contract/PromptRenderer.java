@@ -53,8 +53,9 @@ public final class PromptRenderer {
         joiner.add("- Do NOT invent classes, methods, constructors, or fields that are absent in provided sources.");
         joiner.add("- Use only APIs visible in the provided sources.");
         joiner.add("- Never modify build configuration, test infrastructure, or production code.");
-        joiner.add("- javaSource must be a valid Java compilation unit string.");
-        joiner.add("- javaSource must not contain markdown fences or wrapper text.");
+        joiner.add("- Never request or create infrastructure in this iteration.");
+        joiner.add("- Output must represent a single test only (no batch output).");
+        joiner.add("- No markdown, no prose, JSON only.");
 
         joiner.add("## Output Contract (MUST FOLLOW)");
         joiner.add("Return JSON only.");
@@ -62,11 +63,33 @@ public final class PromptRenderer {
         joiner.add("No explanations.");
         joiner.add("Output must be exactly one JSON object with this schema:");
         joiner.add("{");
-        joiner.add("  \"" + LlmResponseContractV1.FIELD_TEST_CLASS_FQCN + "\": string,");
-        joiner.add("  \"" + LlmResponseContractV1.FIELD_SUGGESTED_FILE_PATH + "\": string,");
-        joiner.add("  \"" + LlmResponseContractV1.FIELD_TEST_FRAMEWORK + "\": \"JUNIT4\" | \"JUNIT5\",");
-        joiner.add("  \"" + LlmResponseContractV1.FIELD_JAVA_SOURCE + "\": string,");
-        joiner.add("  \"" + LlmResponseContractV1.FIELD_NOTES + "\": string[]");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_VERSION + "\": \"" + LlmResponseContractV1.VERSION + "\",");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_ACTION + "\": \"GENERATE_TEST\" | \"FIX_TEST\",");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_TARGET_CLASS + "\": string,");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_TEST_CLASS_NAME + "\": string,");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_IMPORTS + "\": string[],");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_CODE + "\": string,");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_ASSUMPTIONS + "\": string[],");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_REQUIRES_INFRASTRUCTURE + "\": boolean,");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_CONFIDENCE + "\": number (optional),");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_METADATA + "\": object (optional)");
+        joiner.add("}");
+
+        joiner.add("## Failure Example (INVALID)");
+        joiner.add("```json");
+        joiner.add("{\"code\":\"Here is your test...\"}");
+        joiner.add("```");
+
+        joiner.add("## Valid Example");
+        joiner.add("{");
+        joiner.add("  \"version\": \"1.0\",");
+        joiner.add("  \"action\": \"GENERATE_TEST\",");
+        joiner.add("  \"targetClass\": \"com.example.Service\",");
+        joiner.add("  \"testClassName\": \"ServiceTest\",");
+        joiner.add("  \"imports\": [\"org.junit.jupiter.api.Test\"],");
+        joiner.add("  \"code\": \"package com.example;\\npublic class ServiceTest {}\",");
+        joiner.add("  \"assumptions\": [],");
+        joiner.add("  \"requiresInfrastructure\": false");
         joiner.add("}");
 
         return joiner.toString();

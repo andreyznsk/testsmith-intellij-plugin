@@ -4,7 +4,6 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import io.testsmith.plugin.llm.api.GenerationMode;
-import io.testsmith.plugin.llm.api.LlmProtocolException;
 import io.testsmith.plugin.llm.api.LlmRequest;
 import io.testsmith.plugin.llm.api.LlmTransportException;
 import io.testsmith.plugin.llm.api.LlmTuning;
@@ -20,7 +19,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,19 +33,19 @@ class OllamaLlmClientTest {
     }
 
     @Test
-    void mapsRequestToHttpPayload() throws Exception {
+    void mapsRequestToHttpPayloadAndReturnsRawResponse() throws Exception {
         AtomicReference<String> bodyRef = new AtomicReference<>();
         startServer(exchange -> {
             bodyRef.set(readBody(exchange));
-            String response = "{\"response\":\"{\\\"testClassFqcn\\\":\\\"com.example.ServiceTest\\\",\\\"suggestedFilePath\\\":\\\"src/test/java/com/example/ServiceTest.java\\\",\\\"testFramework\\\":\\\"JUNIT5\\\",\\\"javaSource\\\":\\\"package com.example;\\\\npublic class ServiceTest {}\\\",\\\"notes\\\":[]}\"}";
+            String response = "{\"response\":\"{\\\"version\\\":\\\"1.0\\\",\\\"action\\\":\\\"GENERATE_TEST\\\",\\\"targetClass\\\":\\\"com.example.Service\\\",\\\"testClassName\\\":\\\"ServiceTest\\\",\\\"imports\\\":[],\\\"code\\\":\\\"public class ServiceTest {}\\\",\\\"assumptions\\\":[],\\\"requiresInfrastructure\\\":false}\"}";
             writeResponse(exchange, 200, response);
         });
 
         OllamaLlmClient client = new OllamaLlmClient(baseUrl(), "qwen2.5-coder:7b", HttpClient.newHttpClient());
 
-        var response = client.generateTest(request(Duration.ofSeconds(5), new LlmTuning(0.3, 0.8, 1.2)));
+        String rawResponse = client.generateRaw(request(Duration.ofSeconds(5), new LlmTuning(0.3, 0.8, 1.2)));
 
-        assertEquals("com.example.ServiceTest", response.testClassFqcn());
+        assertTrue(rawResponse.contains("\"version\":\"1.0\""));
         String body = bodyRef.get();
         assertTrue(body.contains("\"model\":\"qwen2.5-coder:7b\""));
         assertTrue(body.contains("\"stream\":false"));
@@ -62,7 +60,7 @@ class OllamaLlmClientTest {
 
         OllamaLlmClient client = new OllamaLlmClient(baseUrl(), "qwen2.5-coder:7b", HttpClient.newHttpClient());
 
-        assertThrows(LlmTransportException.class, () -> client.generateTest(request(Duration.ofSeconds(5), LlmTuning.defaults())));
+        assertThrows(LlmTransportException.class, () -> client.generateRaw(request(Duration.ofSeconds(5), LlmTuning.defaults())));
     }
 
     @Test
@@ -78,16 +76,7 @@ class OllamaLlmClientTest {
 
         OllamaLlmClient client = new OllamaLlmClient(baseUrl(), "qwen2.5-coder:7b", HttpClient.newHttpClient());
 
-        assertThrows(LlmTransportException.class, () -> client.generateTest(request(Duration.ofMillis(100), LlmTuning.defaults())));
-    }
-
-    @Test
-    void handlesInvalidJsonAsProtocolException() throws Exception {
-        startServer(exchange -> writeResponse(exchange, 200, "{\"response\":\"not-json\"}"));
-
-        OllamaLlmClient client = new OllamaLlmClient(baseUrl(), "qwen2.5-coder:7b", HttpClient.newHttpClient());
-
-        assertThrows(LlmProtocolException.class, () -> client.generateTest(request(Duration.ofSeconds(5), LlmTuning.defaults())));
+        assertThrows(LlmTransportException.class, () -> client.generateRaw(request(Duration.ofMillis(100), LlmTuning.defaults())));
     }
 
     private void startServer(HttpHandler handler) throws IOException {
