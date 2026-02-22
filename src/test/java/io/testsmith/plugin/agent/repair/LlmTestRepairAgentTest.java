@@ -51,6 +51,7 @@ class LlmTestRepairAgentTest {
         assertEquals(GenerationMode.FIX, request.mode());
         assertEquals(0.1, request.tuning().temperature());
         assertTrue(request.failureContext().contains("FailureClassification:"));
+        assertTrue(request.failureContext().contains("COMPILATION_MISSING_IMPORT"));
         assertTrue(request.failureContext().contains("OriginalStructuredTest:"));
     }
 
@@ -83,6 +84,66 @@ class LlmTestRepairAgentTest {
 
         assertEquals(RepairOutcome.HARD_ABORT, result.outcome());
         assertTrue(result.message().contains("infrastructure"));
+    }
+
+    @Test
+    void rejectsRepairWhenVersionIsNot11() {
+        RecordingClient client = new RecordingClient(List.of(
+                """
+                        {
+                          "version": "1.0",
+                          "action": "REPAIR_TEST",
+                          "targetClass": "com.example.Service",
+                          "testClassName": "ServiceTest",
+                          "imports": ["org.junit.jupiter.api.Test"],
+                          "code": "public class ServiceTest {}",
+                          "assumptions": [],
+                          "requiresInfrastructure": false
+                        }
+                        """
+        ));
+        StructuredGenerationGateway gateway = new StructuredGenerationGateway(
+                client,
+                new StrictStructuredResponseParser(),
+                new DefaultStructuredValidator(),
+                new StructuredRetryPolicy(0)
+        );
+
+        LlmTestRepairAgent agent = new LlmTestRepairAgent(gateway);
+        RepairResult result = agent.attemptRepair(generatedTest(), compilationFailure(), baseContext());
+
+        assertEquals(RepairOutcome.REJECTED, result.outcome());
+        assertTrue(result.message().contains("version must equal 1.1"));
+    }
+
+    @Test
+    void rejectsRepairWhenActionIsNotRepairTest() {
+        RecordingClient client = new RecordingClient(List.of(
+                """
+                        {
+                          "version": "1.1",
+                          "action": "GENERATE_TEST",
+                          "targetClass": "com.example.Service",
+                          "testClassName": "ServiceTest",
+                          "imports": ["org.junit.jupiter.api.Test"],
+                          "code": "public class ServiceTest {}",
+                          "assumptions": [],
+                          "requiresInfrastructure": false
+                        }
+                        """
+        ));
+        StructuredGenerationGateway gateway = new StructuredGenerationGateway(
+                client,
+                new StrictStructuredResponseParser(),
+                new DefaultStructuredValidator(),
+                new StructuredRetryPolicy(0)
+        );
+
+        LlmTestRepairAgent agent = new LlmTestRepairAgent(gateway);
+        RepairResult result = agent.attemptRepair(generatedTest(), compilationFailure(), baseContext());
+
+        assertEquals(RepairOutcome.REJECTED, result.outcome());
+        assertTrue(result.message().contains("action must equal REPAIR_TEST"));
     }
 
     private static RepairContext baseContext() {
@@ -125,7 +186,7 @@ class LlmTestRepairAgentTest {
                 "cannot find symbol",
                 null,
                 "",
-                "cannot find symbol\nimport com.example.Missing",
+                "error: package com.example.missing does not exist\nimport com.example.missing.Foo;",
                 Duration.ofMillis(20)
         );
     }

@@ -4,7 +4,8 @@ import java.util.Objects;
 
 public record RepairAttemptLog(
         int attemptNumber,
-        RepairFailureType failureType,
+        RepairFailureType initialFailureType,
+        RepairFailureType postRepairFailureType,
         String targetClass,
         String outcome,
         long durationMillis
@@ -13,7 +14,7 @@ public record RepairAttemptLog(
         if (attemptNumber <= 0) {
             throw new IllegalArgumentException("attemptNumber must be > 0");
         }
-        Objects.requireNonNull(failureType, "failureType must not be null");
+        Objects.requireNonNull(initialFailureType, "initialFailureType must not be null");
         Objects.requireNonNull(targetClass, "targetClass must not be null");
         Objects.requireNonNull(outcome, "outcome must not be null");
         if (durationMillis < 0) {
@@ -23,9 +24,12 @@ public record RepairAttemptLog(
 
     public String format() {
         return "[RepairAttempt #" + attemptNumber + "]" + System.lineSeparator()
-                + "FailureType: " + failureType + System.lineSeparator()
+                + "InitialFailureType: " + initialFailureType + System.lineSeparator()
                 + "TargetClass: " + targetClass + System.lineSeparator()
                 + "Outcome: " + outcome + System.lineSeparator()
+                + "PostRepairFailureType: "
+                + (postRepairFailureType == null ? "(none)" : postRepairFailureType)
+                + System.lineSeparator()
                 + "Duration: " + durationMillis + "ms";
     }
 }

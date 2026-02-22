@@ -5,7 +5,11 @@ public final class RepairPolicy {
 
     public boolean repairAllowed(RepairFailureType failureType) {
         return switch (failureType) {
-            case COMPILATION, ASSERTION, MISSING_IMPORT -> true;
+            case ASSERTION,
+                 COMPILATION_MISSING_IMPORT,
+                 COMPILATION_MISSING_TYPE,
+                 COMPILATION_MISSING_SYMBOL,
+                 COMPILATION_OTHER -> true;
             case INFRASTRUCTURE, MISSING_JACOCO_XML, OTHER_TEST_FAILURE, TIMEOUT, UNKNOWN -> false;
         };
     }

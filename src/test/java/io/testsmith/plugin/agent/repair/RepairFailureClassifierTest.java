@@ -19,14 +19,65 @@ class RepairFailureClassifierTest {
                 TestExecutionStatus.COMPILATION_FAILED,
                 null,
                 null,
-                "cannot find symbol\nimport com.example.Missing",
+                "error: package com.example.missing does not exist\nimport com.example.missing.Foo;",
                 null,
                 "",
-                "cannot find symbol\nimport com.example.Missing",
+                "error: package com.example.missing does not exist\nimport com.example.missing.Foo;",
                 Duration.ofMillis(50)
         );
 
-        assertEquals(RepairFailureType.MISSING_IMPORT, classifier.classify(result));
+        assertEquals(RepairFailureType.COMPILATION_MISSING_IMPORT, classifier.classify(result));
+    }
+
+    @Test
+    void classifiesMissingType() {
+        TestExecutionResult result = new TestExecutionResult(
+                TestExecutionPhase.VERIFY_TARGET,
+                TestExecutionStatus.COMPILATION_FAILED,
+                null,
+                null,
+                "cannot find symbol\nsymbol: class MissingType",
+                null,
+                "",
+                "cannot find symbol\nsymbol: class MissingType",
+                Duration.ofMillis(50)
+        );
+
+        assertEquals(RepairFailureType.COMPILATION_MISSING_TYPE, classifier.classify(result));
+    }
+
+    @Test
+    void classifiesMissingSymbol() {
+        TestExecutionResult result = new TestExecutionResult(
+                TestExecutionPhase.VERIFY_TARGET,
+                TestExecutionStatus.COMPILATION_FAILED,
+                null,
+                null,
+                "cannot find symbol\nsymbol: method doWork()",
+                null,
+                "",
+                "cannot find symbol\nsymbol: method doWork()",
+                Duration.ofMillis(50)
+        );
+
+        assertEquals(RepairFailureType.COMPILATION_MISSING_SYMBOL, classifier.classify(result));
+    }
+
+    @Test
+    void classifiesOtherCompilationWhenNoSpecificSignal() {
+        TestExecutionResult result = new TestExecutionResult(
+                TestExecutionPhase.VERIFY_TARGET,
+                TestExecutionStatus.COMPILATION_FAILED,
+                null,
+                null,
+                "compilation failed due to unknown javac error",
+                null,
+                "",
+                "",
+                Duration.ofMillis(50)
+        );
+
+        assertEquals(RepairFailureType.COMPILATION_OTHER, classifier.classify(result));
     }
 
     @Test

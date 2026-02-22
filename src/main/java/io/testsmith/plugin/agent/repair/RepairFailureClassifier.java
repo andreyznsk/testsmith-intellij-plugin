@@ -27,9 +27,15 @@ public final class RepairFailureClassifier {
 
         if (failure.status() == TestExecutionStatus.COMPILATION_FAILED) {
             if (looksLikeMissingImport(corpus)) {
-                return RepairFailureType.MISSING_IMPORT;
+                return RepairFailureType.COMPILATION_MISSING_IMPORT;
             }
-            return RepairFailureType.COMPILATION;
+            if (looksLikeMissingType(corpus)) {
+                return RepairFailureType.COMPILATION_MISSING_TYPE;
+            }
+            if (looksLikeMissingSymbol(corpus)) {
+                return RepairFailureType.COMPILATION_MISSING_SYMBOL;
+            }
+            return RepairFailureType.COMPILATION_OTHER;
         }
 
         if (failure.status() == TestExecutionStatus.TEST_FAILED) {
@@ -43,9 +49,23 @@ public final class RepairFailureClassifier {
     }
 
     private static boolean looksLikeMissingImport(String corpus) {
-        return corpus.contains("package ") && corpus.contains(" does not exist")
-                || corpus.contains("cannot find symbol") && corpus.contains("import ")
+        return corpus.contains("error: package ") && corpus.contains(" does not exist")
+                || corpus.contains("import ") && corpus.contains(" does not exist")
                 || corpus.contains("cannot resolve symbol") && corpus.contains("import ");
+    }
+
+    private static boolean looksLikeMissingType(String corpus) {
+        return corpus.contains("symbol: class ")
+                || corpus.contains("cannot access ")
+                || corpus.contains("class file for ") && corpus.contains(" not found")
+                || corpus.contains("error: cannot find class ");
+    }
+
+    private static boolean looksLikeMissingSymbol(String corpus) {
+        return corpus.contains("cannot find symbol")
+                || corpus.contains("cannot resolve symbol")
+                || corpus.contains("symbol: method ")
+                || corpus.contains("symbol: variable ");
     }
 
     private static boolean looksLikeAssertionFailure(String corpus) {

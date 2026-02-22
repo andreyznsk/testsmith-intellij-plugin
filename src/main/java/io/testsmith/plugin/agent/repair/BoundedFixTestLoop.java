@@ -59,14 +59,14 @@ public final class BoundedFixTestLoop {
 
         int attempts = 0;
         while (attempts < RepairPolicy.MAX_REPAIR_ATTEMPTS) {
-            RepairFailureType failureType = failureClassifier.classify(verification);
-            if (!repairPolicy.repairAllowed(failureType)) {
+            RepairFailureType initialFailureType = failureClassifier.classify(verification);
+            if (!repairPolicy.repairAllowed(initialFailureType)) {
                 return new FixLoopResult(
                         FixLoopStatus.ABORTED_DISALLOWED_FAILURE,
                         currentTest,
                         verification,
                         attempts,
-                        "repair is not allowed for failure type: " + failureType
+                        "repair is not allowed for failure type: " + initialFailureType
                 );
             }
 
@@ -77,7 +77,14 @@ public final class BoundedFixTestLoop {
             RepairResult repair = repairAgent.attemptRepair(currentTest, verification, attemptContext);
             if (repair.outcome() == RepairOutcome.HARD_ABORT) {
                 long durationMillis = durationMillis(start);
-                attemptLogger.log(new RepairAttemptLog(attempts, failureType, generatedTest.targetClass(), "HARD_ABORT", durationMillis));
+                attemptLogger.log(new RepairAttemptLog(
+                        attempts,
+                        initialFailureType,
+                        null,
+                        generatedTest.targetClass(),
+                        "HARD_ABORT",
+                        durationMillis
+                ));
                 return new FixLoopResult(
                         FixLoopStatus.ABORTED_HARD_ABORT,
                         currentTest,
@@ -88,7 +95,14 @@ public final class BoundedFixTestLoop {
             }
             if (repair.outcome() == RepairOutcome.REJECTED) {
                 long durationMillis = durationMillis(start);
-                attemptLogger.log(new RepairAttemptLog(attempts, failureType, generatedTest.targetClass(), "REJECTED", durationMillis));
+                attemptLogger.log(new RepairAttemptLog(
+                        attempts,
+                        initialFailureType,
+                        null,
+                        generatedTest.targetClass(),
+                        "REJECTED",
+                        durationMillis
+                ));
                 return new FixLoopResult(
                         FixLoopStatus.ABORTED_REPAIR_REJECTED,
                         currentTest,
@@ -104,7 +118,14 @@ public final class BoundedFixTestLoop {
                 boolean approved = approvalGate.approve(currentTest, repaired, diff, attempts);
                 if (!approved) {
                     long durationMillis = durationMillis(start);
-                    attemptLogger.log(new RepairAttemptLog(attempts, failureType, generatedTest.targetClass(), "MANUAL_REJECTED", durationMillis));
+                    attemptLogger.log(new RepairAttemptLog(
+                            attempts,
+                            initialFailureType,
+                            null,
+                            generatedTest.targetClass(),
+                            "MANUAL_REJECTED",
+                            durationMillis
+                    ));
                     return new FixLoopResult(
                             FixLoopStatus.ABORTED_MANUAL_REJECTION,
                             currentTest,
@@ -119,7 +140,17 @@ public final class BoundedFixTestLoop {
             verification = verifyTargetExecutor.verifyTarget(currentTest);
 
             String outcome = verification.isSuccess() ? "SUCCESS" : "FAILED";
-            attemptLogger.log(new RepairAttemptLog(attempts, failureType, generatedTest.targetClass(), outcome, durationMillis(start)));
+            RepairFailureType postRepairFailureType = verification.isSuccess()
+                    ? null
+                    : failureClassifier.classify(verification);
+            attemptLogger.log(new RepairAttemptLog(
+                    attempts,
+                    initialFailureType,
+                    postRepairFailureType,
+                    generatedTest.targetClass(),
+                    outcome,
+                    durationMillis(start)
+            ));
 
             if (verification.isSuccess()) {
                 return new FixLoopResult(FixLoopStatus.SUCCESS, currentTest, verification, attempts, "repair succeeded");

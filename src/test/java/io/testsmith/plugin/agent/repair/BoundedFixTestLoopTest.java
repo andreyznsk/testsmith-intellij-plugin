@@ -36,7 +36,7 @@ class BoundedFixTestLoopTest {
         AtomicInteger calls = new AtomicInteger();
         VerifyTargetExecutor verifier = test -> {
             if (calls.getAndIncrement() == 0) {
-                return compilationFailure("cannot find symbol\nimport com.example.Missing");
+                return compilationFailure("error: package com.example.missing does not exist\nimport com.example.missing.Foo;");
             }
             return success();
         };
@@ -49,7 +49,9 @@ class BoundedFixTestLoopTest {
         assertEquals(repaired.code(), result.finalTest().code());
         assertEquals(1, logs.size());
         assertTrue(logs.get(0).contains("[RepairAttempt #1]"));
+        assertTrue(logs.get(0).contains("InitialFailureType: COMPILATION_MISSING_IMPORT"));
         assertTrue(logs.get(0).contains("Outcome: SUCCESS"));
+        assertTrue(logs.get(0).contains("PostRepairFailureType: (none)"));
     }
 
     @Test
@@ -74,7 +76,7 @@ class BoundedFixTestLoopTest {
         StructuredTest repaired = repairedTest();
 
         BoundedFixTestLoop loop = new BoundedFixTestLoop((originalTest, failure, context) -> RepairResult.repaired(repaired, "retry"));
-        VerifyTargetExecutor verifier = test -> compilationFailure("cannot find symbol");
+        VerifyTargetExecutor verifier = test -> compilationFailure("cannot find symbol\nsymbol: method doWork()");
 
         FixLoopResult result = loop.execute(generated, verifier, baseContext(generated, RepairMode.AUTONOMOUS));
 
@@ -96,13 +98,43 @@ class BoundedFixTestLoopTest {
                 (original, candidate, diff, attempt) -> false
         );
 
-        VerifyTargetExecutor verifier = test -> compilationFailure("cannot find symbol\nimport com.example.Missing");
+        VerifyTargetExecutor verifier = test -> compilationFailure("error: package com.example.missing does not exist\nimport com.example.missing.Foo;");
 
         FixLoopResult result = loop.execute(generated, verifier, baseContext(generated, RepairMode.MANUAL));
 
         assertEquals(FixLoopStatus.ABORTED_MANUAL_REJECTION, result.status());
         assertEquals(1, result.attemptsUsed());
         assertEquals(generated.code(), result.finalTest().code());
+    }
+
+    @Test
+    void logsPostRepairFailureTypeWhenRetryStillFails() {
+        StructuredTest generated = generatedTest();
+        StructuredTest repaired = repairedTest();
+        List<String> logs = new ArrayList<>();
+        AtomicInteger calls = new AtomicInteger();
+
+        BoundedFixTestLoop loop = new BoundedFixTestLoop(
+                (originalTest, failure, context) -> RepairResult.repaired(repaired, "retry"),
+                new RepairFailureClassifier(),
+                new RepairPolicy(),
+                RepairAttemptLogger.toConsumer(logs::add),
+                RepairDiffRenderer.simpleCodeDiff(),
+                RepairApprovalGate.alwaysApprove()
+        );
+        VerifyTargetExecutor verifier = test -> {
+            if (calls.getAndIncrement() == 0) {
+                return compilationFailure("error: package com.example.missing does not exist\nimport com.example.missing.Foo;");
+            }
+            return compilationFailure("cannot find symbol\nsymbol: method doWork()");
+        };
+
+        FixLoopResult result = loop.execute(generated, verifier, baseContext(generated, RepairMode.AUTONOMOUS));
+
+        assertEquals(FixLoopStatus.ABORTED_MAX_RETRIES, result.status());
+        assertFalse(logs.isEmpty());
+        assertTrue(logs.get(0).contains("InitialFailureType: COMPILATION_MISSING_IMPORT"));
+        assertTrue(logs.get(0).contains("PostRepairFailureType: COMPILATION_MISSING_SYMBOL"));
     }
 
     private static RepairContext baseContext(StructuredTest generated, RepairMode mode) {
