@@ -84,4 +84,25 @@ class StrictStructuredResponseParserTest {
         StructuredResponseException ex = assertThrows(StructuredResponseException.class, () -> parser.parse(payload));
         assertEquals(ValidationErrorType.SCHEMA_INVALID, ex.errorType());
     }
+
+    @Test
+    void parsesRepairContractV11() {
+        String payload = """
+                {
+                  "version": "1.1",
+                  "action": "REPAIR_TEST",
+                  "targetClass": "com.example.Service",
+                  "testClassName": "ServiceTest",
+                  "imports": ["org.junit.jupiter.api.Test"],
+                  "code": "package com.example;\\npublic class ServiceTest {}",
+                  "assumptions": [],
+                  "requiresInfrastructure": false
+                }
+                """;
+
+        StructuredTest result = parser.parse(payload);
+
+        assertEquals("1.1", result.version());
+        assertEquals(StructuredAction.REPAIR_TEST, result.action());
+    }
 }

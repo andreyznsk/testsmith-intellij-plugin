@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PromptRendererTest {
     private final PromptRenderer renderer = new PromptRenderer();
@@ -69,7 +70,7 @@ class PromptRendererTest {
                 "Output must be exactly one JSON object with this schema:",
                 "{",
                 "  \"version\": \"1.0\",",
-                "  \"action\": \"GENERATE_TEST\" | \"FIX_TEST\",",
+                "  \"action\": \"GENERATE_TEST\",",
                 "  \"targetClass\": string,",
                 "  \"testClassName\": string,",
                 "  \"imports\": string[],",
@@ -95,5 +96,24 @@ class PromptRendererTest {
         );
 
         assertEquals(expected, renderer.render(contract));
+    }
+
+    @Test
+    void rendersRepairContractForFixMode() {
+        PromptContractV1 contract = new PromptContractV1(
+                PromptContractV1.VERSION,
+                "com.example.Service",
+                "package com.example;\npublic class Service {}",
+                List.of(),
+                TestFramework.JUNIT5,
+                "",
+                GenerationMode.FIX,
+                "Compilation failed: cannot find symbol",
+                LlmTuning.defaults()
+        );
+
+        String rendered = renderer.render(contract);
+        assertTrue(rendered.contains("\"version\": \"1.1\""));
+        assertTrue(rendered.contains("\"action\": \"REPAIR_TEST\""));
     }
 }

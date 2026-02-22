@@ -189,4 +189,57 @@ class DefaultStructuredValidatorTest {
 
         assertTrue(result.valid());
     }
+
+    @Test
+    void validatesRepairContractVersionAndAction() {
+        StructuredTest test = new StructuredTest(
+                "1.1",
+                StructuredAction.REPAIR_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "public class ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(
+                StructuredAction.REPAIR_TEST,
+                "com.example.Service",
+                "1.1",
+                List.of()
+        );
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertTrue(result.valid());
+    }
+
+    @Test
+    void rejectsRepairWhenVersionDoesNotMatchContext() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.REPAIR_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "public class ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(
+                StructuredAction.REPAIR_TEST,
+                "com.example.Service",
+                "1.1",
+                List.of()
+        );
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertFalse(result.valid());
+        assertEquals(ValidationErrorType.SCHEMA_INVALID, result.errorType());
+    }
 }

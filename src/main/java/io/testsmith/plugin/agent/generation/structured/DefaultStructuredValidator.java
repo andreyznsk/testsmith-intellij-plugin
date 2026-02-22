@@ -13,8 +13,11 @@ public final class DefaultStructuredValidator implements StructuredValidator {
         Objects.requireNonNull(test, "test must not be null");
         Objects.requireNonNull(context, "context must not be null");
 
-        if (!StructuredTest.VERSION_1_0.equals(test.version())) {
-            return ValidationResult.invalid(ValidationErrorType.SCHEMA_INVALID, "version must equal 1.0");
+        if (!context.requestedVersion().equals(test.version())) {
+            return ValidationResult.invalid(
+                    ValidationErrorType.SCHEMA_INVALID,
+                    "version must equal " + context.requestedVersion()
+            );
         }
 
         if (test.action() != context.requestedAction()) {
