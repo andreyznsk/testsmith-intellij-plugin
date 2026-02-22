@@ -78,19 +78,28 @@ public final class StrictStructuredResponseParser implements StructuredResponseP
         boolean requiresInfrastructure = requireBoolean(payload, FIELD_REQUIRES_INFRA);
         Double confidence = requireOptionalDouble(payload, FIELD_CONFIDENCE);
         Map<String, Object> metadata = requireOptionalObject(payload, FIELD_METADATA);
+        try {
+            return new StructuredTest(
+                    version,
+                    action,
+                    targetClass,
+                    testClassName,
+                    imports,
+                    code,
+                    assumptions,
+                    requiresInfrastructure,
+                    confidence,
+                    metadata
+            );
+        } catch (RuntimeException ex) {
+            String msg = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
+            throw new StructuredResponseException(
+                    ValidationErrorType.SCHEMA_INVALID,
+                    "Structured response failed domain validation: " + msg,
+                    ex
+            );
+        }
 
-        return new StructuredTest(
-                version,
-                action,
-                targetClass,
-                testClassName,
-                imports,
-                code,
-                assumptions,
-                requiresInfrastructure,
-                confidence,
-                metadata
-        );
     }
 
     private static void ensureFields(Map<String, Object> payload) {
