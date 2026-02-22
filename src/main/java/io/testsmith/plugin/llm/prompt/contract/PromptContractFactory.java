@@ -1,6 +1,7 @@
 package io.testsmith.plugin.llm.prompt.contract;
 
 import io.testsmith.plugin.llm.api.LlmRequest;
+
 import java.util.Objects;
 
 /**

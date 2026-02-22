@@ -1,14 +1,14 @@
 package io.testsmith.plugin.llm.api;
 
 /**
- * Provider-agnostic client contract for test generation/fix requests.
+ * Provider-agnostic transport contract for test generation/fix requests.
  */
 public interface LlmClient {
     /**
-     * Generates or fixes a test according to the {@link LlmRequest} contract.
+     * Sends a generation/fix request and returns raw LLM text output.
      *
-     * <p>Implementations must return a response parsed from strict JSON output and should map
-     * transport/protocol failures to {@link LlmException} subtypes.
+     * <p>Implementations should map transport/protocol failures to {@link LlmException} subtypes.
+     * Structured schema parsing/validation is enforced in the agent layer.
      */
-    LlmResponse generateTest(LlmRequest request) throws LlmException;
+    String generateRaw(LlmRequest request) throws LlmException;
 }

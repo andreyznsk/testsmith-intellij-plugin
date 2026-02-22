@@ -17,7 +17,7 @@ class CoverageSummaryTest {
     void coverageRatioReturnsFractionForNonZeroLines() {
         CoverageSummary summary = new CoverageSummary(10, 4, 6);
 
-        assertEquals(0.4, summary.coverageRatio(),1e-9);
+        assertEquals(0.4, summary.coverageRatio(), 1e-9);
     }
 
     @Test

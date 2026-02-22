@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <report name="tie-breaker">
-  <package name="com/acme/service">
-    <class name="AService" sourcefilename="AService.java">
-      <counter type="LINE" missed="5" covered="5"/>
-    </class>
-    <class name="BService" sourcefilename="BService.java">
-      <counter type="LINE" missed="50" covered="50"/>
-    </class>
-  </package>
+    <package name="com/acme/service">
+        <class name="AService" sourcefilename="AService.java">
+            <counter type="LINE" missed="5" covered="5"/>
+        </class>
+        <class name="BService" sourcefilename="BService.java">
+            <counter type="LINE" missed="50" covered="50"/>
+        </class>
+    </package>
 </report>

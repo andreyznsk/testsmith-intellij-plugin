@@ -1,19 +1,34 @@
-# Prompt Contract Notes
+# Structured Output Validation Notes (Iteration 3)
 
-## Versioning strategy
+## Architecture boundary
 
-- The prompt contract is versioned via `PromptContractV1.VERSION` and rendered with the version header.
-- A future `PromptContractV2` should be introduced as a new record class and renderer with an updated template.
-- Backward compatibility is maintained by keeping the v1 renderer and parser unchanged; callers can select the version via the factory.
+- The transport layer (`LlmClient`) now returns raw LLM text only.
+- Structured parsing and validation are enforced in agent code (`io.testsmith.plugin.agent.generation.structured`).
+- Agent flow is: `LLM raw text -> StrictStructuredResponseParser -> DefaultStructuredValidator -> agent-safe StructuredTest`.
 
-## Parser strictness rules
+## Canonical schema (v1)
 
-- Only a single top-level JSON object is accepted; any leading or trailing text is rejected.
-- Required fields are enforced and unknown fields are rejected.
-- `testFramework` must match a known enum value.
-- Markdown fences inside `javaSource` are rejected.
+- Contract version: `1.0`
+- Required fields: `version`, `action`, `targetClass`, `testClassName`, `imports`, `code`, `assumptions`, `requiresInfrastructure`
+- Reserved optional fields (accepted and ignored by core validation): `confidence`, `metadata`
+- Parsing is strict JSON only and rejects unknown fields.
 
-## Future logging locations (not implemented)
+## Validation and failure modes
 
-- Log the contract JSON (`PromptContractV1.toJson()`), rendered prompt string, and raw LLM response at the LLM client boundary.
-- Suggested place: the `LlmClient` implementation in `io.testsmith.plugin.llm.ollama.OllamaLlmClient` around `generateTest` (before sending and before parsing).
+- `STRUCTURE_INVALID`: payload is not strict JSON object (or invalid JSON)
+- `SCHEMA_INVALID`: missing/unknown fields or invalid field types/enums
+- `SEMANTIC_INVALID`: target/action/class-name/code invariants violated
+- `INFRASTRUCTURE_REQUIRED`: `requiresInfrastructure=true` (blocked in Iteration 3)
+
+## Retry policy
+
+- Deterministic retry policy with max retries = 2
+- Retries are allowed for `STRUCTURE_INVALID`, `SCHEMA_INVALID`, `SEMANTIC_INVALID`
+- `INFRASTRUCTURE_REQUIRED` is terminal and aborts immediately
+- Retry hints are injected into request notes with `[structured-retry]` prefix
+
+## Version evolution
+
+- Introduce future versions as new parser+validator contracts in parallel (e.g., v2)
+- Keep v1 behavior stable and immutable for deterministic replay
+- Agent can route by `version` if multi-version support is added later

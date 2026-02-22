@@ -1,11 +1,8 @@
 package io.testsmith.plugin.llm.internal;
 
 import io.testsmith.plugin.llm.api.LlmProtocolException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+
+import java.util.*;
 
 /**
  * Small dependency-free JSON codec used for strict protocol parsing and payload generation.
