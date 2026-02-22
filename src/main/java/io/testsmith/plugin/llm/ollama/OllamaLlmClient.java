@@ -4,8 +4,8 @@ import io.testsmith.plugin.llm.api.LlmClient;
 import io.testsmith.plugin.llm.api.LlmMisconfigurationException;
 import io.testsmith.plugin.llm.api.LlmRequest;
 import io.testsmith.plugin.llm.api.LlmResponse;
-import io.testsmith.plugin.llm.parse.LlmResponseParser;
 import io.testsmith.plugin.llm.prompt.PromptComposer;
+import io.testsmith.plugin.llm.prompt.response.LlmResponseParser;
 import java.net.http.HttpClient;
 import java.util.Objects;
 
