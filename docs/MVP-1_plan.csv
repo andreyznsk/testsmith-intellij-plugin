@@ -20,7 +20,7 @@ Iteration 2,15,Stagnation detection,1,0.5,Coverage delta logic,done
 Iteration 3,16,LLM client abstraction,1,0.5,Unified interface,done
 Iteration 3,17,Ollama provider,2,1,Deterministic config,done
 Iteration 3,18,Prompt contract schema,2,1,Strict format,done
-Iteration 3,19,Structured output validation,2,1,JSON schema
+Iteration 3,19,Structured output validation,2,1,JSON schema,done
 Iteration 3,20,Fix-test loop,2,1,Retry with error context
 
 Iteration 4,21,Plugin settings UI,2,1,Agent/Coverage/LLM
