@@ -2,6 +2,7 @@ package io.testsmith.plugin.llm.prompt.contract;
 
 import io.testsmith.plugin.llm.api.GenerationMode;
 import io.testsmith.plugin.llm.prompt.response.LlmResponseContractV1;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.StringJoiner;

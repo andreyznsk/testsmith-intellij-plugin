@@ -1,11 +1,8 @@
 package io.testsmith.plugin.agent.generation.structured;
 
 import io.testsmith.plugin.llm.internal.JsonCodec;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+
+import java.util.*;
 
 public final class StrictStructuredResponseParser implements StructuredResponseParser {
     private static final String FIELD_VERSION = "version";

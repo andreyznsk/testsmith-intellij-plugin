@@ -1,10 +1,7 @@
 package io.testsmith.plugin.coverage;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -12,8 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class JacocoXmlCoverageReaderTest {
     private final JacocoXmlCoverageReader reader = new JacocoXmlCoverageReader();
@@ -29,9 +26,9 @@ class JacocoXmlCoverageReaderTest {
         assertTrue(snapshot.packages().containsKey("com.acme.dto"));
 
         ClassCoverage orderService = snapshot.packages()
-            .get("com.acme.service")
-            .classes()
-            .get("OrderService");
+                .get("com.acme.service")
+                .classes()
+                .get("OrderService");
         assertNotNull(orderService);
         assertEquals(7, orderService.lineCoverage().missed());
         assertEquals(3, orderService.lineCoverage().covered());
@@ -42,13 +39,13 @@ class JacocoXmlCoverageReaderTest {
         CoverageSnapshot snapshot = reader.read(resourcePath("jacocoTest/missing-line-counter.xml"));
 
         assertFalse(snapshot.packages()
-            .get("com.acme.service")
-            .classes()
-            .containsKey("HasOnlyInstruction"));
+                .get("com.acme.service")
+                .classes()
+                .containsKey("HasOnlyInstruction"));
         assertTrue(snapshot.packages()
-            .get("com.acme.service")
-            .classes()
-            .containsKey("Normal"));
+                .get("com.acme.service")
+                .classes()
+                .containsKey("Normal"));
     }
 
     @Test
@@ -56,9 +53,9 @@ class JacocoXmlCoverageReaderTest {
         CoverageSnapshot snapshot = reader.read(resourcePath("jacocoTest/zero-total-lines.xml"));
 
         ClassCoverage emptyCoverage = snapshot.packages()
-            .get("com.acme.edge")
-            .classes()
-            .get("EmptyCoverage");
+                .get("com.acme.edge")
+                .classes()
+                .get("EmptyCoverage");
         assertNotNull(emptyCoverage);
         assertEquals(0, emptyCoverage.lineCoverage().total());
         assertEquals(1.0, emptyCoverage.lineCoverage().ratio(), 1e-12);
@@ -71,9 +68,9 @@ class JacocoXmlCoverageReaderTest {
         LowestLineCoveragePolicy policy = new LowestLineCoveragePolicy(filter);
 
         List<ClassCoverage> included = snapshot.packages().values().stream()
-            .flatMap(pkg -> pkg.classes().values().stream())
-            .filter(filter::include)
-            .toList();
+                .flatMap(pkg -> pkg.classes().values().stream())
+                .filter(filter::include)
+                .toList();
 
         assertEquals(1, included.size());
         assertEquals("com.acme.domain.Invoice", included.getFirst().className());
@@ -114,7 +111,7 @@ class JacocoXmlCoverageReaderTest {
 
     private static int totalClasses(CoverageSnapshot snapshot) {
         return snapshot.packages().values().stream()
-            .mapToInt(pkg -> pkg.classes().size())
-            .sum();
+                .mapToInt(pkg -> pkg.classes().size())
+                .sum();
     }
 }

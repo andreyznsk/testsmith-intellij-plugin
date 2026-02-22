@@ -3,11 +3,10 @@ package io.testsmith.plugin.llm.ollama;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import io.testsmith.plugin.llm.api.GenerationMode;
-import io.testsmith.plugin.llm.api.LlmRequest;
-import io.testsmith.plugin.llm.api.LlmTransportException;
-import io.testsmith.plugin.llm.api.LlmTuning;
-import io.testsmith.plugin.llm.api.TestFramework;
+import io.testsmith.plugin.llm.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
@@ -16,8 +15,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;

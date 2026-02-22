@@ -1,13 +1,10 @@
 package io.testsmith.plugin.testrunner;
 
+import io.testsmith.plugin.testrunner.failure.*;
 import io.testsmith.plugin.testrunner.model.TestExecutionPhase;
 import io.testsmith.plugin.testrunner.model.TestExecutionResult;
 import io.testsmith.plugin.testrunner.model.TestExecutionStatus;
-import io.testsmith.plugin.testrunner.failure.DefaultFailureExtractor;
-import io.testsmith.plugin.testrunner.failure.FailureExtractor;
-import io.testsmith.plugin.testrunner.failure.FailureKind;
-import io.testsmith.plugin.testrunner.failure.FailureReport;
-import io.testsmith.plugin.testrunner.failure.LogSlicer;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;

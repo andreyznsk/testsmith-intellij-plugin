@@ -3,8 +3,9 @@ package io.testsmith.plugin.llm.prompt.contract;
 import io.testsmith.plugin.llm.api.GenerationMode;
 import io.testsmith.plugin.llm.api.LlmTuning;
 import io.testsmith.plugin.llm.api.TestFramework;
-import java.util.List;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

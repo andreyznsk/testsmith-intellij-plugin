@@ -1,11 +1,7 @@
 package io.testsmith.plugin.agent.stagnation;
 
 import io.testsmith.plugin.agent.coverage.diff.CoverageDiff;
-import io.testsmith.plugin.agent.coverage.model.ClassCoverage;
-import io.testsmith.plugin.agent.coverage.model.ClassId;
-import io.testsmith.plugin.agent.coverage.model.CoverageSnapshot;
-import io.testsmith.plugin.agent.coverage.model.CoverageSummary;
-import io.testsmith.plugin.agent.coverage.model.PackageName;
+import io.testsmith.plugin.agent.coverage.model.*;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -14,10 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class DefaultStagnationGuardTest {
     @Test

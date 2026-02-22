@@ -2,6 +2,7 @@ package io.testsmith.plugin.agent.generation.structured;
 
 import io.testsmith.plugin.llm.api.LlmClient;
 import io.testsmith.plugin.llm.api.LlmRequest;
+
 import java.util.Objects;
 
 public final class StructuredGenerationGateway {

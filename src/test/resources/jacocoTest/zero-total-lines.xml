@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <report name="zero-total">
-  <package name="com/acme/edge">
-    <class name="EmptyCoverage" sourcefilename="EmptyCoverage.java">
-      <counter type="LINE" missed="0" covered="0"/>
-    </class>
-    <class name="SomeCoverage" sourcefilename="SomeCoverage.java">
-      <counter type="LINE" missed="1" covered="0"/>
-    </class>
-  </package>
+    <package name="com/acme/edge">
+        <class name="EmptyCoverage" sourcefilename="EmptyCoverage.java">
+            <counter type="LINE" missed="0" covered="0"/>
+        </class>
+        <class name="SomeCoverage" sourcefilename="SomeCoverage.java">
+            <counter type="LINE" missed="1" covered="0"/>
+        </class>
+    </package>
 </report>

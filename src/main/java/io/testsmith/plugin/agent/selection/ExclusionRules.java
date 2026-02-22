@@ -2,12 +2,7 @@ package io.testsmith.plugin.agent.selection;
 
 import io.testsmith.plugin.agent.coverage.model.ClassCoverage;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 public final class ExclusionRules {
     private final List<String> excludedPackages;

@@ -1,19 +1,14 @@
 package io.testsmith.plugin.agent.generation.structured;
 
-import io.testsmith.plugin.llm.api.GenerationMode;
-import io.testsmith.plugin.llm.api.LlmClient;
-import io.testsmith.plugin.llm.api.LlmRequest;
-import io.testsmith.plugin.llm.api.LlmTuning;
-import io.testsmith.plugin.llm.api.TestFramework;
+import io.testsmith.plugin.llm.api.*;
+import org.junit.jupiter.api.Test;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class StructuredGenerationGatewayTest {
 
@@ -22,17 +17,17 @@ class StructuredGenerationGatewayTest {
         RecordingClient client = new RecordingClient(List.of(
                 "not-json",
                 """
-                {
-                  "version": "1.0",
-                  "action": "GENERATE_TEST",
-                  "targetClass": "com.example.Service",
-                  "testClassName": "ServiceTest",
-                  "imports": [],
-                  "code": "public class ServiceTest {}",
-                  "assumptions": [],
-                  "requiresInfrastructure": false
-                }
-                """
+                        {
+                          "version": "1.0",
+                          "action": "GENERATE_TEST",
+                          "targetClass": "com.example.Service",
+                          "testClassName": "ServiceTest",
+                          "imports": [],
+                          "code": "public class ServiceTest {}",
+                          "assumptions": [],
+                          "requiresInfrastructure": false
+                        }
+                        """
         ));
 
         StructuredGenerationGateway gateway = new StructuredGenerationGateway(
@@ -53,17 +48,17 @@ class StructuredGenerationGatewayTest {
     void doesNotRetryWhenInfrastructureIsRequired() {
         RecordingClient client = new RecordingClient(List.of(
                 """
-                {
-                  "version": "1.0",
-                  "action": "GENERATE_TEST",
-                  "targetClass": "com.example.Service",
-                  "testClassName": "ServiceTest",
-                  "imports": [],
-                  "code": "public class ServiceTest {}",
-                  "assumptions": [],
-                  "requiresInfrastructure": true
-                }
-                """
+                        {
+                          "version": "1.0",
+                          "action": "GENERATE_TEST",
+                          "targetClass": "com.example.Service",
+                          "testClassName": "ServiceTest",
+                          "imports": [],
+                          "code": "public class ServiceTest {}",
+                          "assumptions": [],
+                          "requiresInfrastructure": true
+                        }
+                        """
         ));
 
         StructuredGenerationGateway gateway = new StructuredGenerationGateway(
