@@ -124,6 +124,6 @@ class StrictStructuredResponseParserTest {
 
         StructuredResponseException ex = assertThrows(StructuredResponseException.class, () -> parser.parse(payload));
         assertEquals(ValidationErrorType.SCHEMA_INVALID, ex.errorType());
-        assertTrue(ex.getMessage().contains("unsupported value"));
+        assertTrue(ex.getMessage().contains("FIX_TEST"));
     }
 }

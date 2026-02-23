@@ -100,10 +100,36 @@ public final class DefaultStructuredValidator implements StructuredValidator {
         }
 
         if (normalized.startsWith("@")) {
-            return false;
+            return containsWrapperTextBetweenAnnotations(normalized);
         }
 
         return true;
+    }
+
+    private static boolean containsWrapperTextBetweenAnnotations(String normalized) {
+        for (String line : normalized.split("\\R")) {
+            String trimmed = line.stripLeading();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (trimmed.startsWith("@")) {
+                continue;
+            }
+            if (startsWithAny(trimmed,
+                    "package ",
+                    "import ",
+                    "public ",
+                    "final ",
+                    "abstract ",
+                    "class ",
+                    "interface ",
+                    "enum ",
+                    "record ")) {
+                return false;
+            }
+            return true;
+        }
+        return false;
     }
 
     private static boolean startsWithAny(String value, String... prefixes) {

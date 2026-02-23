@@ -30,6 +30,29 @@ class RepairFailureClassifierTest {
     }
 
     @Test
+    void prefersImportSignalWhenCompilationContainsMultipleHints() {
+        TestExecutionResult result = new TestExecutionResult(
+                TestExecutionPhase.VERIFY_TARGET,
+                TestExecutionStatus.COMPILATION_FAILED,
+                null,
+                null,
+                "error: package com.example.missing does not exist\n"
+                        + "import com.example.missing.Foo;\n"
+                        + "cannot find symbol\n"
+                        + "symbol: class Foo",
+                null,
+                "",
+                "error: package com.example.missing does not exist\n"
+                        + "import com.example.missing.Foo;\n"
+                        + "cannot find symbol\n"
+                        + "symbol: class Foo",
+                Duration.ofMillis(50)
+        );
+
+        assertEquals(RepairFailureType.COMPILATION_MISSING_IMPORT, classifier.classify(result));
+    }
+
+    @Test
     void classifiesMissingType() {
         TestExecutionResult result = new TestExecutionResult(
                 TestExecutionPhase.VERIFY_TARGET,

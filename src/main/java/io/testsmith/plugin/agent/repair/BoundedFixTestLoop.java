@@ -57,28 +57,28 @@ public final class BoundedFixTestLoop {
             return new FixLoopResult(FixLoopStatus.SUCCESS, currentTest, verification, 0, "initial verification passed");
         }
 
-        int attempts = 0;
-        while (attempts < RepairPolicy.MAX_REPAIR_ATTEMPTS) {
+        int attemptsUsed = 0;
+        for (int attemptIndex = 0; attemptIndex < RepairPolicy.MAX_REPAIR_ATTEMPTS; attemptIndex++) {
+            int attemptNumber = attemptIndex + 1;
             RepairFailureType initialFailureType = failureClassifier.classify(verification);
             if (!repairPolicy.repairAllowed(initialFailureType)) {
                 return new FixLoopResult(
                         FixLoopStatus.ABORTED_DISALLOWED_FAILURE,
                         currentTest,
                         verification,
-                        attempts,
+                        attemptsUsed,
                         "repair is not allowed for failure type: " + initialFailureType
                 );
             }
 
-            attempts++;
             Instant start = Instant.now();
-            RepairContext attemptContext = baseContext.withAttemptNumber(attempts, currentTest);
+            RepairContext attemptContext = baseContext.withAttemptNumber(attemptNumber, currentTest);
 
             RepairResult repair = repairAgent.attemptRepair(currentTest, verification, attemptContext);
             if (repair.outcome() == RepairOutcome.HARD_ABORT) {
                 long durationMillis = durationMillis(start);
                 attemptLogger.log(new RepairAttemptLog(
-                        attempts,
+                        attemptNumber,
                         initialFailureType,
                         null,
                         generatedTest.targetClass(),
@@ -89,14 +89,14 @@ public final class BoundedFixTestLoop {
                         FixLoopStatus.ABORTED_HARD_ABORT,
                         currentTest,
                         verification,
-                        attempts,
+                        attemptNumber,
                         repair.message()
                 );
             }
             if (repair.outcome() == RepairOutcome.REJECTED) {
                 long durationMillis = durationMillis(start);
                 attemptLogger.log(new RepairAttemptLog(
-                        attempts,
+                        attemptNumber,
                         initialFailureType,
                         null,
                         generatedTest.targetClass(),
@@ -107,7 +107,7 @@ public final class BoundedFixTestLoop {
                         FixLoopStatus.ABORTED_REPAIR_REJECTED,
                         currentTest,
                         verification,
-                        attempts,
+                        attemptNumber,
                         repair.message()
                 );
             }
@@ -115,11 +115,11 @@ public final class BoundedFixTestLoop {
             StructuredTest repaired = repair.repairedTest();
             if (attemptContext.repairMode() == RepairMode.MANUAL) {
                 String diff = diffRenderer.render(currentTest, repaired);
-                boolean approved = approvalGate.approve(currentTest, repaired, diff, attempts);
+                boolean approved = approvalGate.approve(currentTest, repaired, diff, attemptNumber);
                 if (!approved) {
                     long durationMillis = durationMillis(start);
                     attemptLogger.log(new RepairAttemptLog(
-                            attempts,
+                            attemptNumber,
                             initialFailureType,
                             null,
                             generatedTest.targetClass(),
@@ -130,7 +130,7 @@ public final class BoundedFixTestLoop {
                             FixLoopStatus.ABORTED_MANUAL_REJECTION,
                             currentTest,
                             verification,
-                            attempts,
+                            attemptNumber,
                             "manual approval rejected repaired test"
                     );
                 }
@@ -144,7 +144,7 @@ public final class BoundedFixTestLoop {
                     ? null
                     : failureClassifier.classify(verification);
             attemptLogger.log(new RepairAttemptLog(
-                    attempts,
+                    attemptNumber,
                     initialFailureType,
                     postRepairFailureType,
                     generatedTest.targetClass(),
@@ -153,15 +153,17 @@ public final class BoundedFixTestLoop {
             ));
 
             if (verification.isSuccess()) {
-                return new FixLoopResult(FixLoopStatus.SUCCESS, currentTest, verification, attempts, "repair succeeded");
+                return new FixLoopResult(FixLoopStatus.SUCCESS, currentTest, verification, attemptNumber, "repair succeeded");
             }
+
+            attemptsUsed = attemptNumber;
         }
 
         return new FixLoopResult(
                 FixLoopStatus.ABORTED_MAX_RETRIES,
                 currentTest,
                 verification,
-                attempts,
+                attemptsUsed,
                 "reached max repair attempts: " + RepairPolicy.MAX_REPAIR_ATTEMPTS
         );
     }

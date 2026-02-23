@@ -49,9 +49,8 @@ public final class RepairFailureClassifier {
     }
 
     private static boolean looksLikeMissingImport(String corpus) {
-        return corpus.contains("error: package ") && corpus.contains(" does not exist")
-                || corpus.contains("import ") && corpus.contains(" does not exist")
-                || corpus.contains("cannot resolve symbol") && corpus.contains("import ");
+        return corpus.contains("package ") && corpus.contains(" does not exist")
+                || corpus.contains("import ") && corpus.contains(" does not exist");
     }
 
     private static boolean looksLikeMissingType(String corpus) {

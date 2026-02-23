@@ -56,6 +56,43 @@ class LlmTestRepairAgentTest {
     }
 
     @Test
+    void repairContextAlwaysUsesV11AndRepairAction() {
+        List<GenerationContext> contexts = new ArrayList<>();
+        StructuredValidator validator = (test, context) -> {
+            contexts.add(context);
+            return ValidationResult.ok();
+        };
+
+        StructuredResponseParser parser = raw -> new StructuredTest(
+                "1.1",
+                StructuredAction.REPAIR_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of("org.junit.jupiter.api.Test"),
+                "package com.example;\npublic class ServiceTest {}",
+                List.of(),
+                false,
+                0.8,
+                Map.of()
+        );
+
+        StructuredGenerationGateway gateway = new StructuredGenerationGateway(
+                request -> "{}",
+                parser,
+                validator,
+                new StructuredRetryPolicy(0)
+        );
+
+        LlmTestRepairAgent agent = new LlmTestRepairAgent(gateway);
+        RepairResult result = agent.attemptRepair(generatedTest(), compilationFailure(), baseContext());
+
+        assertEquals(RepairOutcome.REPAIRED, result.outcome());
+        assertEquals(1, contexts.size());
+        assertEquals(StructuredAction.REPAIR_TEST, contexts.getFirst().requestedAction());
+        assertEquals("1.1", contexts.getFirst().requestedVersion());
+    }
+
+    @Test
     void hardAbortsWhenRepairRequestsInfrastructure() {
         RecordingClient client = new RecordingClient(List.of(
                 """
