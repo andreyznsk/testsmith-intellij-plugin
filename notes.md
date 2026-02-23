@@ -32,3 +32,21 @@
 - Introduce future versions as new parser+validator contracts in parallel (e.g., v2)
 - Keep v1 behavior stable and immutable for deterministic replay
 - Agent can route by `version` if multi-version support is added later
+
+## Iteration 3.20: Bounded Fix-Test loop
+
+- Added `TestRepairAgent` contract and `LlmTestRepairAgent` implementation.
+- Added deterministic bounded loop (`BoundedFixTestLoop`) with `MAX_REPAIR_ATTEMPTS=2`.
+- Repair is allowed only for classified failures: `COMPILATION`, `ASSERTION`, `MISSING_IMPORT`.
+- Infrastructure failures (`INFRASTRUCTURE`, `MISSING_JACOCO_XML`, `TIMEOUT`) short-circuit with abort.
+- Manual mode requires diff+approval callback; autonomous mode auto-applies repairs.
+- Per-attempt logging format:
+  - `[RepairAttempt #n]`
+  - `FailureType: ...`
+  - `TargetClass: ...`
+  - `Outcome: ...`
+  - `Duration: ...ms`
+- Repair schema contract:
+  - `version=1.1`
+  - `action=REPAIR_TEST`
+  - parser remains strict JSON object + known fields only.

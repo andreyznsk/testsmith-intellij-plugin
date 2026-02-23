@@ -189,4 +189,246 @@ class DefaultStructuredValidatorTest {
 
         assertTrue(result.valid());
     }
+
+    @Test
+    void rejectsWrapperProseBetweenAnnotationAndCode() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "@MyCustomTest\nHere is the test:\nclass ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                List.of("@MyCustomTest")
+        );
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertFalse(result.valid());
+        assertEquals(ValidationErrorType.SEMANTIC_INVALID, result.errorType());
+    }
+
+    @Test
+    void allowsCommentLineBetweenAnnotationAndCode() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "@MyCustomTest\n// comment\nclass ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                List.of("@MyCustomTest")
+        );
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertTrue(result.valid());
+    }
+
+    @Test
+    void allowsBlockCommentBetweenAnnotationAndCode() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "@MyCustomTest\n/* comment */\nclass ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                List.of("@MyCustomTest")
+        );
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertTrue(result.valid());
+    }
+
+    @Test
+    void allowsFinalClassAtStart() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "final class ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(StructuredAction.GENERATE_TEST, "com.example.Service", List.of());
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertTrue(result.valid());
+    }
+
+    @Test
+    void allowsAbstractClassAtStart() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "abstract class ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(StructuredAction.GENERATE_TEST, "com.example.Service", List.of());
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertTrue(result.valid());
+    }
+
+    @Test
+    void allowsAnnotationStartWithoutRequiringDiscovery() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "@ExtendWith(MockitoExtension.class)\nclass ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(StructuredAction.GENERATE_TEST, "com.example.Service", List.of());
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertTrue(result.valid());
+    }
+
+    @Test
+    void rejectsWrapperProseBeforeCode() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "Here is the test:\nfinal class ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(StructuredAction.GENERATE_TEST, "com.example.Service", List.of());
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertFalse(result.valid());
+        assertEquals(ValidationErrorType.SEMANTIC_INVALID, result.errorType());
+    }
+
+    @Test
+    void validatesRepairContractVersionAndAction() {
+        StructuredTest test = new StructuredTest(
+                "1.1",
+                StructuredAction.REPAIR_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "public class ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(
+                StructuredAction.REPAIR_TEST,
+                "com.example.Service",
+                "1.1",
+                List.of()
+        );
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertTrue(result.valid());
+    }
+
+    @Test
+    void rejectsRepairWhenVersionDoesNotMatchContext() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.REPAIR_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "public class ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(
+                StructuredAction.REPAIR_TEST,
+                "com.example.Service",
+                "1.1",
+                List.of()
+        );
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertFalse(result.valid());
+        assertEquals(ValidationErrorType.SCHEMA_INVALID, result.errorType());
+    }
+
+    @Test
+    void rejectsRepairWhenActionDoesNotMatchRepairContract() {
+        StructuredTest test = new StructuredTest(
+                "1.1",
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "public class ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(
+                StructuredAction.REPAIR_TEST,
+                "com.example.Service",
+                "1.1",
+                List.of()
+        );
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertFalse(result.valid());
+        assertEquals(ValidationErrorType.SEMANTIC_INVALID, result.errorType());
+        assertTrue(result.message().contains("action must equal REPAIR_TEST"));
+    }
 }

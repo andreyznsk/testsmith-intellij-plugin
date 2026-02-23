@@ -5,7 +5,8 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 public final class DefaultStructuredValidator implements StructuredValidator {
-    private static final Pattern CLASS_DECLARATION = Pattern.compile("\\bclass\\s+([A-Za-z_][A-Za-z0-9_]*)\\b");
+    private static final Pattern TYPE_DECLARATION =
+            Pattern.compile("\\b(?:class|interface|enum|record)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b");
     private static final List<String> PROHIBITED_ASSUMPTION_MARKERS = List.of("imaginary", "invented", "does not exist");
 
     @Override
@@ -13,12 +14,18 @@ public final class DefaultStructuredValidator implements StructuredValidator {
         Objects.requireNonNull(test, "test must not be null");
         Objects.requireNonNull(context, "context must not be null");
 
-        if (!StructuredTest.VERSION_1_0.equals(test.version())) {
-            return ValidationResult.invalid(ValidationErrorType.SCHEMA_INVALID, "version must equal 1.0");
+        if (!context.requestedVersion().equals(test.version())) {
+            return ValidationResult.invalid(
+                    ValidationErrorType.SCHEMA_INVALID,
+                    "version must equal " + context.requestedVersion()
+            );
         }
 
         if (test.action() != context.requestedAction()) {
-            return ValidationResult.invalid(ValidationErrorType.SEMANTIC_INVALID, "action does not match requested action");
+            return ValidationResult.invalid(
+                    ValidationErrorType.SEMANTIC_INVALID,
+                    "action must equal " + context.requestedAction()
+            );
         }
 
         if (!test.targetClass().equals(context.requestedTargetClass())) {
@@ -41,8 +48,7 @@ public final class DefaultStructuredValidator implements StructuredValidator {
             return ValidationResult.invalid(ValidationErrorType.SEMANTIC_INVALID, "code must not contain markdown fences");
         }
 
-        boolean annotationsAllowed = !context.discoveredAnnotations().isEmpty();
-        if (containsProhibitedWrapperText(test.code(), annotationsAllowed)) {
+        if (containsProhibitedWrapperText(test.code())) {
             return ValidationResult.invalid(ValidationErrorType.SEMANTIC_INVALID, "code contains wrapper prose");
         }
 
@@ -66,7 +72,7 @@ public final class DefaultStructuredValidator implements StructuredValidator {
 
     private static String extractClassName(String code) {
         String withoutComments = removeComments(code);
-        var matcher = CLASS_DECLARATION.matcher(withoutComments);
+        var matcher = TYPE_DECLARATION.matcher(withoutComments);
         return matcher.find() ? matcher.group(1) : null;
     }
 
@@ -74,24 +80,84 @@ public final class DefaultStructuredValidator implements StructuredValidator {
         return code.contains("```");
     }
 
-    private static boolean containsProhibitedWrapperText(String code, boolean annotationsAllowed) {
+    private static boolean containsProhibitedWrapperText(String code) {
         String normalized = stripLeadingWhitespaceAndComments(code);
         if (normalized.isEmpty()) {
             return true;
         }
 
-        if (normalized.startsWith("package ")
-                || normalized.startsWith("import ")
-                || normalized.startsWith("public ")
-                || normalized.startsWith("class ")) {
+        if (startsWithAny(normalized,
+                "package ",
+                "import ",
+                "public ",
+                "final ",
+                "abstract ",
+                "class ",
+                "interface ",
+                "enum ",
+                "record ")) {
             return false;
         }
 
         if (normalized.startsWith("@")) {
-            return !annotationsAllowed;
+            return containsWrapperTextBetweenAnnotations(normalized);
         }
 
         return true;
+    }
+
+    private static boolean containsWrapperTextBetweenAnnotations(String normalized) {
+        boolean inBlockComment = false;
+        for (String line : normalized.split("\\R")) {
+            String trimmed = line.stripLeading();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (inBlockComment) {
+                if (trimmed.contains("*/")) {
+                    inBlockComment = false;
+                }
+                continue;
+            }
+            if (trimmed.startsWith("/*")) {
+                if (!trimmed.contains("*/")) {
+                    inBlockComment = true;
+                }
+                continue;
+            }
+            if (trimmed.startsWith("*")) {
+                continue;
+            }
+            if (trimmed.startsWith("//")) {
+                continue;
+            }
+            if (trimmed.startsWith("@")) {
+                continue;
+            }
+            if (startsWithAny(trimmed,
+                    "package ",
+                    "import ",
+                    "public ",
+                    "final ",
+                    "abstract ",
+                    "class ",
+                    "interface ",
+                    "enum ",
+                    "record ")) {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean startsWithAny(String value, String... prefixes) {
+        for (String prefix : prefixes) {
+            if (value.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String stripLeadingWhitespaceAndComments(String code) {

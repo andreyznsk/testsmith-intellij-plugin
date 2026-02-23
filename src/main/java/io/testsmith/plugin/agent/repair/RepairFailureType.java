@@ -1,0 +1,14 @@
+package io.testsmith.plugin.agent.repair;
+
+public enum RepairFailureType {
+    ASSERTION,
+    COMPILATION_MISSING_IMPORT,
+    COMPILATION_MISSING_TYPE,
+    COMPILATION_MISSING_SYMBOL,
+    COMPILATION_OTHER,
+    INFRASTRUCTURE,
+    MISSING_JACOCO_XML,
+    OTHER_TEST_FAILURE,
+    TIMEOUT,
+    UNKNOWN
+}

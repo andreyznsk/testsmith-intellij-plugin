@@ -63,9 +63,17 @@ public final class PromptRenderer {
         joiner.add("No markdown.");
         joiner.add("No explanations.");
         joiner.add("Output must be exactly one JSON object with this schema:");
+        boolean repairMode = contract.generationMode() == GenerationMode.FIX;
+        String expectedVersion = repairMode
+                ? LlmResponseContractV1.VERSION_REPAIR
+                : LlmResponseContractV1.VERSION;
+        String expectedAction = repairMode
+                ? LlmResponseContractV1.ACTION_REPAIR_TEST
+                : LlmResponseContractV1.ACTION_GENERATE_TEST;
+
         joiner.add("{");
-        joiner.add("  \"" + LlmResponseContractV1.FIELD_VERSION + "\": \"" + LlmResponseContractV1.VERSION + "\",");
-        joiner.add("  \"" + LlmResponseContractV1.FIELD_ACTION + "\": \"GENERATE_TEST\" | \"FIX_TEST\",");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_VERSION + "\": \"" + expectedVersion + "\",");
+        joiner.add("  \"" + LlmResponseContractV1.FIELD_ACTION + "\": \"" + expectedAction + "\",");
         joiner.add("  \"" + LlmResponseContractV1.FIELD_TARGET_CLASS + "\": string,");
         joiner.add("  \"" + LlmResponseContractV1.FIELD_TEST_CLASS_NAME + "\": string,");
         joiner.add("  \"" + LlmResponseContractV1.FIELD_IMPORTS + "\": string[],");
@@ -81,8 +89,8 @@ public final class PromptRenderer {
 
         joiner.add("## Valid Example");
         joiner.add("{");
-        joiner.add("  \"version\": \"1.0\",");
-        joiner.add("  \"action\": \"GENERATE_TEST\",");
+        joiner.add("  \"version\": \"" + expectedVersion + "\",");
+        joiner.add("  \"action\": \"" + expectedAction + "\",");
         joiner.add("  \"targetClass\": \"com.example.Service\",");
         joiner.add("  \"testClassName\": \"ServiceTest\",");
         joiner.add("  \"imports\": [\"org.junit.jupiter.api.Test\"],");

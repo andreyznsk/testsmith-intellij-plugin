@@ -18,6 +18,7 @@ public record StructuredTest(
         Map<String, Object> metadata
 ) {
     public static final String VERSION_1_0 = "1.0";
+    public static final String VERSION_1_1 = "1.1";
 
     public StructuredTest {
         version = requireNonBlank(version, "version");
