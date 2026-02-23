@@ -1,12 +1,6 @@
 package io.testsmith.plugin.testrunner.failure;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,6 +22,17 @@ public final class DefaultFailureExtractor implements FailureExtractor {
             Pattern.compile(".*\\berrors?:\\s+.+", Pattern.CASE_INSENSITIVE);
     private static final Pattern JAVA_COMPILER_ERROR_PAREN =
             Pattern.compile(".*\\berror\\(s\\):\\s+.+", Pattern.CASE_INSENSITIVE);
+    private static final String[] INFRA_NEEDLES = {
+            "could not resolve",
+            "could not determine the dependencies",
+            "no matching toolchains found",
+            "cannot find a java installation",
+            "gradle build daemon disappeared unexpectedly",
+            "could not find or load main class",
+            "permission denied",
+            "no such file or directory",
+            "could not resolve all files"
+    };
 
     @Override
     public FailureReport extract(String stdout, String stderr, int exitCode, boolean timedOut) {
@@ -143,6 +148,9 @@ public final class DefaultFailureExtractor implements FailureExtractor {
                 "execution failed for task ':compiletestjava'"
         );
         if (!trigger) {
+            return null;
+        }
+        if (containsAnyLines(lines, INFRA_NEEDLES)) {
             return null;
         }
 
@@ -261,16 +269,7 @@ public final class DefaultFailureExtractor implements FailureExtractor {
             String stderr
     ) {
         boolean trigger = containsAnyLines(
-                lines,
-                "could not resolve",
-                "could not determine the dependencies",
-                "no matching toolchains found",
-                "cannot find a java installation",
-                "gradle build daemon disappeared unexpectedly",
-                "could not find or load main class",
-                "permission denied",
-                "no such file or directory",
-                "could not resolve all files"
+                lines, INFRA_NEEDLES
         );
         if (!trigger) {
             return null;

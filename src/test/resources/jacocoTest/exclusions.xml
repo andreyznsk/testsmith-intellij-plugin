@@ -1,26 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <report name="exclusions">
-  <package name="com/acme/dto">
-    <class name="InvoiceDto" sourcefilename="InvoiceDto.java">
-      <counter type="LINE" missed="10" covered="0"/>
-    </class>
-  </package>
+    <package name="com/acme/dto">
+        <class name="InvoiceDto" sourcefilename="InvoiceDto.java">
+            <counter type="LINE" missed="10" covered="0"/>
+        </class>
+    </package>
 
-  <package name="com/acme/config">
-    <class name="PaymentsConfig" sourcefilename="PaymentsConfig.java">
-      <counter type="LINE" missed="20" covered="0"/>
-    </class>
-  </package>
+    <package name="com/acme/config">
+        <class name="PaymentsConfig" sourcefilename="PaymentsConfig.java">
+            <counter type="LINE" missed="20" covered="0"/>
+        </class>
+    </package>
 
-  <package name="com/acme/generated">
-    <class name="QInvoice" sourcefilename="QInvoice.java">
-      <counter type="LINE" missed="30" covered="0"/>
-    </class>
-  </package>
+    <package name="com/acme/generated">
+        <class name="QInvoice" sourcefilename="QInvoice.java">
+            <counter type="LINE" missed="30" covered="0"/>
+        </class>
+    </package>
 
-  <package name="com/acme/domain">
-    <class name="Invoice" sourcefilename="Invoice.java">
-      <counter type="LINE" missed="3" covered="7"/>
-    </class>
-  </package>
+    <package name="com/acme/domain">
+        <class name="Invoice" sourcefilename="Invoice.java">
+            <counter type="LINE" missed="3" covered="7"/>
+        </class>
+    </package>
 </report>

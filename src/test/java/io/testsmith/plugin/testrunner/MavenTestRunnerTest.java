@@ -1,17 +1,16 @@
 package io.testsmith.plugin.testrunner;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import io.testsmith.plugin.testrunner.model.TestExecutionStatus;
 import io.testsmith.plugin.testrunner.failure.FailureKind;
+import io.testsmith.plugin.testrunner.model.TestExecutionStatus;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class MavenTestRunnerTest {
 

@@ -1,16 +1,16 @@
 package io.testsmith.plugin.coverage;
 
+import javax.xml.stream.XMLEventReader;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.StartElement;
+import javax.xml.stream.events.XMLEvent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import javax.xml.stream.XMLEventReader;
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.events.StartElement;
-import javax.xml.stream.events.XMLEvent;
 
 public final class JacocoXmlCoverageReader implements CoverageReader {
     @Override
@@ -50,8 +50,8 @@ public final class JacocoXmlCoverageReader implements CoverageReader {
                             String fqcn = packageName.isEmpty() ? currentClass : packageName + "." + currentClass;
                             ClassCoverage coverage = new ClassCoverage(fqcn, currentLineCoverage);
                             packages
-                                .computeIfAbsent(packageName, key -> new LinkedHashMap<>())
-                                .put(currentClass, coverage);
+                                    .computeIfAbsent(packageName, key -> new LinkedHashMap<>())
+                                    .put(currentClass, coverage);
                         }
                         currentClass = null;
                         currentLineCoverage = null;

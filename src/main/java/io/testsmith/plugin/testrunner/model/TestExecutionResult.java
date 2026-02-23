@@ -1,6 +1,7 @@
 package io.testsmith.plugin.testrunner.model;
 
 import io.testsmith.plugin.testrunner.failure.FailureReport;
+
 import java.time.Duration;
 import java.util.Objects;
 

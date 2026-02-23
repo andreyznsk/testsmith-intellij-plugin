@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <report name="missing-line">
-  <package name="com/acme/service">
-    <class name="HasOnlyInstruction" sourcefilename="HasOnlyInstruction.java">
-      <counter type="INSTRUCTION" missed="10" covered="10"/>
-    </class>
-    <class name="Normal" sourcefilename="Normal.java">
-      <counter type="LINE" missed="2" covered="8"/>
-    </class>
-  </package>
+    <package name="com/acme/service">
+        <class name="HasOnlyInstruction" sourcefilename="HasOnlyInstruction.java">
+            <counter type="INSTRUCTION" missed="10" covered="10"/>
+        </class>
+        <class name="Normal" sourcefilename="Normal.java">
+            <counter type="LINE" missed="2" covered="8"/>
+        </class>
+    </package>
 </report>
