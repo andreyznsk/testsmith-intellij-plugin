@@ -87,6 +87,23 @@ class RepairFailureClassifierTest {
     }
 
     @Test
+    void prefersTypeWhenSymbolAndTypeSignalsOverlap() {
+        TestExecutionResult result = new TestExecutionResult(
+                TestExecutionPhase.VERIFY_TARGET,
+                TestExecutionStatus.COMPILATION_FAILED,
+                null,
+                null,
+                "cannot find symbol\nsymbol: class MissingType\nsymbol: method doWork()",
+                null,
+                "",
+                "cannot find symbol\nsymbol: class MissingType\nsymbol: method doWork()",
+                Duration.ofMillis(50)
+        );
+
+        assertEquals(RepairFailureType.COMPILATION_MISSING_TYPE, classifier.classify(result));
+    }
+
+    @Test
     void classifiesOtherCompilationWhenNoSpecificSignal() {
         TestExecutionResult result = new TestExecutionResult(
                 TestExecutionPhase.VERIFY_TARGET,

@@ -71,6 +71,36 @@ class BoundedFixTestLoopTest {
     }
 
     @Test
+    void countsAttemptsForHardAbort() {
+        StructuredTest generated = generatedTest();
+        BoundedFixTestLoop loop = new BoundedFixTestLoop((originalTest, failure, context) -> RepairResult.hardAbort("stop"));
+        VerifyTargetExecutor verifier = test -> compilationFailure("cannot find symbol\nsymbol: class MissingType");
+
+        FixLoopResult result = loop.execute(generated, verifier, baseContext(generated, RepairMode.AUTONOMOUS));
+
+        assertEquals(FixLoopStatus.ABORTED_HARD_ABORT, result.status());
+        assertEquals(1, result.attemptsUsed());
+    }
+
+    @Test
+    void countsAttemptsWhenSecondRepairIsRejected() {
+        StructuredTest generated = generatedTest();
+        StructuredTest repaired = repairedTest();
+        BoundedFixTestLoop loop = new BoundedFixTestLoop((originalTest, failure, context) -> {
+            if (context.attemptNumber() == 1) {
+                return RepairResult.repaired(repaired, "retry");
+            }
+            return RepairResult.rejected("nope");
+        });
+        VerifyTargetExecutor verifier = test -> compilationFailure("cannot find symbol\nsymbol: method doWork()");
+
+        FixLoopResult result = loop.execute(generated, verifier, baseContext(generated, RepairMode.AUTONOMOUS));
+
+        assertEquals(FixLoopStatus.ABORTED_REPAIR_REJECTED, result.status());
+        assertEquals(2, result.attemptsUsed());
+    }
+
+    @Test
     void stopsAtMaxRepairAttempts() {
         StructuredTest generated = generatedTest();
         StructuredTest repaired = repairedTest();

@@ -6,8 +6,8 @@ Operationally, repair attempt logging is now post-mortem friendly: each attempt 
 
 ## DoD Checklist
 
-- [ ] A1: attemptNumber is 1-based everywhere; attemptsUsed is a count (0 when no repair attempted)
-- [ ] A2: deprecated FIX_TEST action rejects with SCHEMA_INVALID and message contains FIX_TEST
-- [ ] B1: no raw List/Map types in StructuredTest/GenerationContext contracts
-- [ ] B2: repair context always requests version 1.1 and action REPAIR_TEST; validator emits consistent messages
-- [ ] B3: RepairFailureClassifier prioritizes IMPORT > TYPE > SYMBOL > OTHER with tests for overlaps
+- [x] A1: attemptNumber is 1-based everywhere; attemptsUsed is a count (0 when no repair attempted)
+- [x] A2: deprecated FIX_TEST action rejects with SCHEMA_INVALID and message contains FIX_TEST
+- [x] B1: no raw List/Map types in StructuredTest/GenerationContext contracts
+- [x] B2: repair context always requests version 1.1 and action REPAIR_TEST; validator emits consistent messages
+- [x] B3: RepairFailureClassifier prioritizes IMPORT > TYPE > SYMBOL > OTHER with tests for overlaps

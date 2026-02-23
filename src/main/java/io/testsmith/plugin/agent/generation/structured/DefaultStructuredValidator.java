@@ -107,9 +107,28 @@ public final class DefaultStructuredValidator implements StructuredValidator {
     }
 
     private static boolean containsWrapperTextBetweenAnnotations(String normalized) {
+        boolean inBlockComment = false;
         for (String line : normalized.split("\\R")) {
             String trimmed = line.stripLeading();
             if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (inBlockComment) {
+                if (trimmed.contains("*/")) {
+                    inBlockComment = false;
+                }
+                continue;
+            }
+            if (trimmed.startsWith("/*")) {
+                if (!trimmed.contains("*/")) {
+                    inBlockComment = true;
+                }
+                continue;
+            }
+            if (trimmed.startsWith("*")) {
+                continue;
+            }
+            if (trimmed.startsWith("//")) {
                 continue;
             }
             if (trimmed.startsWith("@")) {

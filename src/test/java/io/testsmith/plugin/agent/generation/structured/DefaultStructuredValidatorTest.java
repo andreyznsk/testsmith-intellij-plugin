@@ -217,6 +217,56 @@ class DefaultStructuredValidatorTest {
     }
 
     @Test
+    void allowsCommentLineBetweenAnnotationAndCode() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "@MyCustomTest\n// comment\nclass ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                List.of("@MyCustomTest")
+        );
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertTrue(result.valid());
+    }
+
+    @Test
+    void allowsBlockCommentBetweenAnnotationAndCode() {
+        StructuredTest test = new StructuredTest(
+                "1.0",
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                "ServiceTest",
+                List.of(),
+                "@MyCustomTest\n/* comment */\nclass ServiceTest {}",
+                List.of(),
+                false,
+                null,
+                null
+        );
+        GenerationContext context = new GenerationContext(
+                StructuredAction.GENERATE_TEST,
+                "com.example.Service",
+                List.of("@MyCustomTest")
+        );
+
+        ValidationResult result = validator.validate(test, context);
+
+        assertTrue(result.valid());
+    }
+
+    @Test
     void allowsFinalClassAtStart() {
         StructuredTest test = new StructuredTest(
                 "1.0",

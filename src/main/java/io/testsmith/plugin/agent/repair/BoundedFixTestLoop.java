@@ -73,6 +73,7 @@ public final class BoundedFixTestLoop {
 
             Instant start = Instant.now();
             RepairContext attemptContext = baseContext.withAttemptNumber(attemptNumber, currentTest);
+            attemptsUsed = attemptNumber;
 
             RepairResult repair = repairAgent.attemptRepair(currentTest, verification, attemptContext);
             if (repair.outcome() == RepairOutcome.HARD_ABORT) {
@@ -155,8 +156,6 @@ public final class BoundedFixTestLoop {
             if (verification.isSuccess()) {
                 return new FixLoopResult(FixLoopStatus.SUCCESS, currentTest, verification, attemptNumber, "repair succeeded");
             }
-
-            attemptsUsed = attemptNumber;
         }
 
         return new FixLoopResult(
