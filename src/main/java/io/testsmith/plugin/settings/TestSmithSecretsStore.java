@@ -6,7 +6,7 @@ import com.intellij.credentialStore.CredentialAttributes;
 import java.util.Optional;
 
 public final class TestSmithSecretsStore {
-    private static final String SERVICE_NAME = "TestSmith";
+    private static final String SERVICE_PREFIX = "TestSmith/";
     private static final String OPENAI_KEY = "openai.apiKey";
     private static final String GIGACHAT_KEY = "gigachat.apiKey";
 
@@ -44,16 +44,16 @@ public final class TestSmithSecretsStore {
     }
 
     private CredentialAttributes attributes(Project project, String key) {
-        return new CredentialAttributes(projectScopedKey(project, key));
+        return new CredentialAttributes(serviceName(project), key);
     }
 
-    private String projectScopedKey(Project project, String key) {
+    private String serviceName(Project project) {
         String projectId = project.getLocationHash();
         if (projectId == null || projectId.isBlank()) {
             String basePath = project.getBasePath();
             projectId = project.getName() + (basePath == null ? "" : ":" + basePath);
         }
-        return SERVICE_NAME + "." + projectId + "." + key;
+        return SERVICE_PREFIX + projectId;
     }
 
     private String normalize(String value) {

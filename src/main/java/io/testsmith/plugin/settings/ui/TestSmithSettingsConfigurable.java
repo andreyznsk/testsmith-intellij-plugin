@@ -60,12 +60,11 @@ public final class TestSmithSettingsConfigurable implements SearchableConfigurab
             return;
         }
         TestSmithProjectSettingsService service = TestSmithProjectSettingsService.getInstance(project);
-        TestSmithProjectSettings current = service.getSettings();
-        ExecutionMode beforeMode = current.executionMode;
+        ExecutionMode beforeMode = service.getSettings().executionMode;
 
         com.intellij.openapi.ui.ValidationInfo validation = panel.validateForApply();
         if (validation != null) {
-            throw new ConfigurationException(validation.message, validation.component);
+            throw new ConfigurationException(validation.message);
         }
 
         ExecutionMode newMode = panel.getExecutionMode();
@@ -81,14 +80,16 @@ public final class TestSmithSettingsConfigurable implements SearchableConfigurab
             }
         }
 
-        panel.applyTo(current);
+        TestSmithProjectSettings updated = new TestSmithProjectSettings();
+        panel.applyTo(updated);
+        service.loadState(updated);
 
-        secretsStore.setOpenAiKey(project, panel.getOpenAiKey());
-        secretsStore.setGigaChatKey(project, panel.getGigaChatKey());
+        String savedOpenAiKey = panel.getOpenAiKey();
+        String savedGigaChatKey = panel.getGigaChatKey();
+        secretsStore.setOpenAiKey(project, savedOpenAiKey);
+        secretsStore.setGigaChatKey(project, savedGigaChatKey);
 
-        panel.reset(current,
-                secretsStore.getOpenAiKey(project).orElse(""),
-                secretsStore.getGigaChatKey(project).orElse(""));
+        panel.markClean(savedOpenAiKey, savedGigaChatKey);
     }
 
     @Override

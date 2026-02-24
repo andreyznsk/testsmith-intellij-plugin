@@ -6,7 +6,7 @@ import java.util.List;
 public class TestSmithProjectSettings {
     public BuildToolMode buildToolMode = BuildToolMode.AUTO;
     public ExecutionMode executionMode = ExecutionMode.MANUAL;
-    public int maxIterations = 5;
+    public int maxIterations = 10;
 
     public String jacocoXmlPath = "";
     public int targetCoverage = 80;
@@ -23,15 +23,15 @@ public class TestSmithProjectSettings {
 
     public static class OllamaConfig {
         public String baseUrl = "http://localhost:11434";
-        public String model = "llama3";
-        public double temperature = 0.2;
+        public String model = "qwen2.5-coder:7b";
+        public double temperature = 0.1;
         public double topP = 0.9;
         public double repeatPenalty = 1.1;
     }
 
     public static class OpenAiConfig {
         public String model = "gpt-4o-mini";
-        public double temperature = 0.2;
+        public double temperature = 0.1;
         public int maxTokens = 2048;
     }
 

@@ -9,7 +9,6 @@ import com.intellij.openapi.ui.ComponentValidator;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.openapi.ui.ValidationInfo;
 import com.intellij.openapi.util.Disposer;
-import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
@@ -17,7 +16,6 @@ import com.intellij.ui.components.JBPasswordField;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
-import com.intellij.ui.components.JBIntSpinner;
 import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.UIUtil;
 import io.testsmith.plugin.settings.BuildToolMode;
@@ -47,11 +45,11 @@ public final class TestSmithSettingsPanel implements Disposable {
 
     private final ComboBox<BuildToolMode> buildToolModeCombo = new ComboBox<>(BuildToolMode.values());
     private final ComboBox<ExecutionMode> executionModeCombo = new ComboBox<>(ExecutionMode.values());
-    private final JBIntSpinner maxIterationsSpinner = new JBIntSpinner(5, 1, Integer.MAX_VALUE, 1);
+    private final JSpinner maxIterationsSpinner = new JSpinner(new SpinnerNumberModel(10, 1, Integer.MAX_VALUE, 1));
     private final JPanel autonomousWarningPanel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 0, 0));
 
     private final TextFieldWithBrowseButton jacocoXmlPath = new TextFieldWithBrowseButton();
-    private final JBIntSpinner targetCoverageSpinner = new JBIntSpinner(80, 1, 100, 1);
+    private final JSpinner targetCoverageSpinner = new JSpinner(new SpinnerNumberModel(80, 1, 100, 1));
     private final JBTextArea exclusionsArea = new JBTextArea(6, 40);
 
     private final ComboBox<LlmProvider> providerCombo = new ComboBox<>(LlmProvider.values());
@@ -59,14 +57,14 @@ public final class TestSmithSettingsPanel implements Disposable {
 
     private final JBTextField ollamaBaseUrlField = new JBTextField();
     private final JBTextField ollamaModelField = new JBTextField();
-    private final JSpinner ollamaTemperatureSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 1.0, 0.1));
+    private final JSpinner ollamaTemperatureSpinner = new JSpinner(new SpinnerNumberModel(0.1, 0.0, 1.0, 0.1));
     private final JSpinner ollamaTopPSpinner = new JSpinner(new SpinnerNumberModel(0.9, 0.0, 1.0, 0.05));
     private final JSpinner ollamaRepeatPenaltySpinner = new JSpinner(new SpinnerNumberModel(1.1, 0.1, 10.0, 0.1));
 
     private final JBPasswordField openAiApiKeyField = new JBPasswordField();
     private final JBTextField openAiModelField = new JBTextField();
-    private final JSpinner openAiTemperatureSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 1.0, 0.1));
-    private final JBIntSpinner openAiMaxTokensSpinner = new JBIntSpinner(2048, 1, Integer.MAX_VALUE, 1);
+    private final JSpinner openAiTemperatureSpinner = new JSpinner(new SpinnerNumberModel(0.1, 0.0, 1.0, 0.1));
+    private final JSpinner openAiMaxTokensSpinner = new JSpinner(new SpinnerNumberModel(2048, 1, Integer.MAX_VALUE, 1));
 
     private final JBPasswordField gigaChatApiKeyField = new JBPasswordField();
     private final JBTextField gigaChatModelField = new JBTextField();
@@ -135,10 +133,10 @@ public final class TestSmithSettingsPanel implements Disposable {
     public void reset(TestSmithProjectSettings settings, String openAiKey, String gigaChatKey) {
         buildToolModeCombo.setSelectedItem(settings.buildToolMode);
         executionModeCombo.setSelectedItem(settings.executionMode);
-        maxIterationsSpinner.setNumber(settings.maxIterations);
+        maxIterationsSpinner.setValue(settings.maxIterations);
 
         jacocoXmlPath.setText(settings.jacocoXmlPath == null ? "" : settings.jacocoXmlPath);
-        targetCoverageSpinner.setNumber(settings.targetCoverage);
+        targetCoverageSpinner.setValue(settings.targetCoverage);
         exclusionsArea.setText(String.join("\n", safeList(settings.exclusions)));
 
         providerCombo.setSelectedItem(settings.provider);
@@ -153,7 +151,7 @@ public final class TestSmithSettingsPanel implements Disposable {
         TestSmithProjectSettings.OpenAiConfig openAi = settings.openAi == null ? new TestSmithProjectSettings.OpenAiConfig() : settings.openAi;
         openAiModelField.setText(nullToEmpty(openAi.model));
         openAiTemperatureSpinner.setValue(openAi.temperature);
-        openAiMaxTokensSpinner.setNumber(openAi.maxTokens);
+        openAiMaxTokensSpinner.setValue(openAi.maxTokens);
 
         TestSmithProjectSettings.GigaChatConfig gigaChat = settings.gigaChat == null ? new TestSmithProjectSettings.GigaChatConfig() : settings.gigaChat;
         gigaChatModelField.setText(nullToEmpty(gigaChat.model));
@@ -163,8 +161,7 @@ public final class TestSmithSettingsPanel implements Disposable {
         contextCacheCheck.setSelected(settings.contextCacheEnabled);
         verboseLoggingCheck.setSelected(settings.verboseLogging);
 
-        initialOpenAiKey = openAiKey == null ? "" : openAiKey;
-        initialGigaChatKey = gigaChatKey == null ? "" : gigaChatKey;
+        markClean(openAiKey, gigaChatKey);
         openAiApiKeyField.setText(initialOpenAiKey);
         gigaChatApiKeyField.setText(initialGigaChatKey);
 
@@ -173,19 +170,23 @@ public final class TestSmithSettingsPanel implements Disposable {
     }
 
     public boolean isModified(TestSmithProjectSettings settings) {
+        TestSmithProjectSettings.OllamaConfig ollama = settings.ollama == null ? new TestSmithProjectSettings.OllamaConfig() : settings.ollama;
+        TestSmithProjectSettings.OpenAiConfig openAi = settings.openAi == null ? new TestSmithProjectSettings.OpenAiConfig() : settings.openAi;
+        TestSmithProjectSettings.GigaChatConfig gigaChat = settings.gigaChat == null ? new TestSmithProjectSettings.GigaChatConfig() : settings.gigaChat;
+
         if (!Objects.equals(buildToolModeCombo.getSelectedItem(), settings.buildToolMode)) {
             return true;
         }
         if (!Objects.equals(executionModeCombo.getSelectedItem(), settings.executionMode)) {
             return true;
         }
-        if (maxIterationsSpinner.getNumber() != settings.maxIterations) {
+        if (intValue(maxIterationsSpinner) != settings.maxIterations) {
             return true;
         }
         if (!Objects.equals(jacocoXmlPath.getText().trim(), nullToEmpty(settings.jacocoXmlPath))) {
             return true;
         }
-        if (targetCoverageSpinner.getNumber() != settings.targetCoverage) {
+        if (intValue(targetCoverageSpinner) != settings.targetCoverage) {
             return true;
         }
         if (!Objects.equals(parseExclusions(), safeList(settings.exclusions))) {
@@ -194,34 +195,34 @@ public final class TestSmithSettingsPanel implements Disposable {
         if (!Objects.equals(providerCombo.getSelectedItem(), settings.provider)) {
             return true;
         }
-        if (!Objects.equals(ollamaBaseUrlField.getText().trim(), nullToEmpty(settings.ollama == null ? null : settings.ollama.baseUrl))) {
+        if (!Objects.equals(ollamaBaseUrlField.getText().trim(), nullToEmpty(ollama.baseUrl))) {
             return true;
         }
-        if (!Objects.equals(ollamaModelField.getText().trim(), nullToEmpty(settings.ollama == null ? null : settings.ollama.model))) {
+        if (!Objects.equals(ollamaModelField.getText().trim(), nullToEmpty(ollama.model))) {
             return true;
         }
-        if (doubleValue(ollamaTemperatureSpinner) != (settings.ollama == null ? 0.0 : settings.ollama.temperature)) {
+        if (differs(doubleValue(ollamaTemperatureSpinner), ollama.temperature)) {
             return true;
         }
-        if (doubleValue(ollamaTopPSpinner) != (settings.ollama == null ? 0.0 : settings.ollama.topP)) {
+        if (differs(doubleValue(ollamaTopPSpinner), ollama.topP)) {
             return true;
         }
-        if (doubleValue(ollamaRepeatPenaltySpinner) != (settings.ollama == null ? 0.0 : settings.ollama.repeatPenalty)) {
+        if (differs(doubleValue(ollamaRepeatPenaltySpinner), ollama.repeatPenalty)) {
             return true;
         }
-        if (!Objects.equals(openAiModelField.getText().trim(), nullToEmpty(settings.openAi == null ? null : settings.openAi.model))) {
+        if (!Objects.equals(openAiModelField.getText().trim(), nullToEmpty(openAi.model))) {
             return true;
         }
-        if (doubleValue(openAiTemperatureSpinner) != (settings.openAi == null ? 0.0 : settings.openAi.temperature)) {
+        if (differs(doubleValue(openAiTemperatureSpinner), openAi.temperature)) {
             return true;
         }
-        if (openAiMaxTokensSpinner.getNumber() != (settings.openAi == null ? 0 : settings.openAi.maxTokens)) {
+        if (intValue(openAiMaxTokensSpinner) != openAi.maxTokens) {
             return true;
         }
-        if (!Objects.equals(gigaChatModelField.getText().trim(), nullToEmpty(settings.gigaChat == null ? null : settings.gigaChat.model))) {
+        if (!Objects.equals(gigaChatModelField.getText().trim(), nullToEmpty(gigaChat.model))) {
             return true;
         }
-        if (!Objects.equals(gigaChatEndpointField.getText().trim(), nullToEmpty(settings.gigaChat == null ? null : settings.gigaChat.endpoint))) {
+        if (!Objects.equals(gigaChatEndpointField.getText().trim(), nullToEmpty(gigaChat.endpoint))) {
             return true;
         }
         if (strictModeCheck.isSelected() != settings.strictMode) {
@@ -242,10 +243,10 @@ public final class TestSmithSettingsPanel implements Disposable {
     public void applyTo(TestSmithProjectSettings settings) {
         settings.buildToolMode = (BuildToolMode) buildToolModeCombo.getSelectedItem();
         settings.executionMode = (ExecutionMode) executionModeCombo.getSelectedItem();
-        settings.maxIterations = maxIterationsSpinner.getNumber();
+        settings.maxIterations = intValue(maxIterationsSpinner);
 
         settings.jacocoXmlPath = jacocoXmlPath.getText().trim();
-        settings.targetCoverage = targetCoverageSpinner.getNumber();
+        settings.targetCoverage = intValue(targetCoverageSpinner);
         settings.exclusions = parseExclusions();
 
         settings.provider = (LlmProvider) providerCombo.getSelectedItem();
@@ -264,7 +265,7 @@ public final class TestSmithSettingsPanel implements Disposable {
         }
         settings.openAi.model = openAiModelField.getText().trim();
         settings.openAi.temperature = doubleValue(openAiTemperatureSpinner);
-        settings.openAi.maxTokens = openAiMaxTokensSpinner.getNumber();
+        settings.openAi.maxTokens = intValue(openAiMaxTokensSpinner);
 
         if (settings.gigaChat == null) {
             settings.gigaChat = new TestSmithProjectSettings.GigaChatConfig();
@@ -279,7 +280,7 @@ public final class TestSmithSettingsPanel implements Disposable {
 
     public ValidationInfo validateForApply() {
         if (executionModeCombo.getSelectedItem() == ExecutionMode.AUTONOMOUS) {
-            if (maxIterationsSpinner.getNumber() <= 0) {
+            if (intValue(maxIterationsSpinner) <= 0) {
                 return new ValidationInfo("Max iterations must be greater than 0.", maxIterationsSpinner);
             }
         }
@@ -314,10 +315,15 @@ public final class TestSmithSettingsPanel implements Disposable {
         return new String(gigaChatApiKeyField.getPassword()).trim();
     }
 
+    public void markClean(String openAiKey, String gigaChatKey) {
+        initialOpenAiKey = openAiKey == null ? "" : openAiKey;
+        initialGigaChatKey = gigaChatKey == null ? "" : gigaChatKey;
+    }
+
     private void configureAutonomousWarning() {
         autonomousWarningPanel.add(new JBLabel(AllIcons.General.Warning));
-        JBLabel label = new JBLabel("Autonomous mode can run tests and apply changes without further confirmation.");
-        label.setForeground(JBColor.RED);
+        JBLabel label = new JBLabel("Autonomous mode runs iterative test generation without per-step approval. You can stop the agent at any time.");
+        label.setForeground(UIUtil.getContextHelpForeground());
         autonomousWarningPanel.add(Box.createHorizontalStrut(6));
         autonomousWarningPanel.add(label);
     }
@@ -370,7 +376,7 @@ public final class TestSmithSettingsPanel implements Disposable {
     }
 
     private ValidationInfo validateTargetCoverage() {
-        int value = targetCoverageSpinner.getNumber();
+        int value = intValue(targetCoverageSpinner);
         if (value < 1 || value > 100) {
             return new ValidationInfo("Target coverage must be between 1 and 100.", targetCoverageSpinner);
         }
@@ -381,7 +387,7 @@ public final class TestSmithSettingsPanel implements Disposable {
         if (executionModeCombo.getSelectedItem() != ExecutionMode.AUTONOMOUS) {
             return null;
         }
-        if (maxIterationsSpinner.getNumber() <= 0) {
+        if (intValue(maxIterationsSpinner) <= 0) {
             return new ValidationInfo("Max iterations must be greater than 0.", maxIterationsSpinner);
         }
         return null;
@@ -423,13 +429,13 @@ public final class TestSmithSettingsPanel implements Disposable {
         }
         File file = new File(path);
         if (!file.exists() || !file.isFile()) {
-            return new ValidationInfo("JaCoCo XML file does not exist.", jacocoXmlPath);
+            return new ValidationInfo("JaCoCo XML file does not exist.", jacocoXmlPath.getTextField());
         }
         if (!file.canRead()) {
-            return new ValidationInfo("JaCoCo XML file is not readable.", jacocoXmlPath);
+            return new ValidationInfo("JaCoCo XML file is not readable.", jacocoXmlPath.getTextField());
         }
         if (!path.endsWith(".xml")) {
-            return new ValidationInfo("JaCoCo XML path must end with .xml.", jacocoXmlPath);
+            return new ValidationInfo("JaCoCo XML path must end with .xml.", jacocoXmlPath.getTextField());
         }
         return null;
     }
@@ -484,6 +490,18 @@ public final class TestSmithSettingsPanel implements Disposable {
             return number.doubleValue();
         }
         return 0.0;
+    }
+
+    private static int intValue(JSpinner spinner) {
+        Object value = spinner.getValue();
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return 0;
+    }
+
+    private static boolean differs(double a, double b) {
+        return Math.abs(a - b) > 1e-6;
     }
 
     private static String nullToEmpty(String value) {
