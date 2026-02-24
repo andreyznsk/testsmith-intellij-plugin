@@ -41,9 +41,7 @@ public final class StubAgentController implements AgentController, Disposable {
         long myRunId = runId.incrementAndGet();
 
         log("Run requested");
-        if (isCurrentRun(myRunId)) {
-            return;
-        }
+
         transitionTo(AgentUiState.ANALYZING, "Analyzing target class");
 
         List<Step> steps = new ArrayList<>();
@@ -56,9 +54,6 @@ public final class StubAgentController implements AgentController, Disposable {
         for (int i = 0; i < steps.size(); i++) {
             Step step = steps.get(i);
             scheduler.schedule(() -> {
-                if (isCurrentRun(myRunId)) {
-                    return;
-                }
                 transitionTo(step.state(), step.logMessage());
                 if (step.state() == AgentUiState.WAITING_FOR_APPROVAL) {
                     model.setProposalText("// Proposed test diff (stub)\\n+ @Test\\n+ void shouldDoSomething() {\\n+     // TODO: generated test\\n+ }");
@@ -127,7 +122,7 @@ public final class StubAgentController implements AgentController, Disposable {
         model.appendLog("[" + LocalTime.now().format(LOG_TIME) + "] " + message);
     }
 
-    private boolean isCurrentRun(long myRunId) {
+    private boolean isStaleRun(long myRunId) {
         return runId.get() != myRunId;
     }
 
