@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 public final class StubAgentController implements AgentController, Disposable {
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -21,6 +22,7 @@ public final class StubAgentController implements AgentController, Disposable {
     private final Project project;
     private final AgentUiModel model;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final AtomicLong runId = new AtomicLong(0L);
 
     public StubAgentController(@NotNull Project project, @NotNull AgentUiModel model) {
         this.project = Objects.requireNonNull(project, "project");
@@ -36,8 +38,12 @@ public final class StubAgentController implements AgentController, Disposable {
             log("Run ignored: current state is " + current);
             return;
         }
+        long myRunId = runId.incrementAndGet();
 
         log("Run requested");
+        if (isCurrentRun(myRunId)) {
+            return;
+        }
         transitionTo(AgentUiState.ANALYZING, "Analyzing target class");
 
         List<Step> steps = new ArrayList<>();
@@ -50,7 +56,7 @@ public final class StubAgentController implements AgentController, Disposable {
         for (int i = 0; i < steps.size(); i++) {
             Step step = steps.get(i);
             scheduler.schedule(() -> {
-                if (model.getState() == AgentUiState.STOPPED) {
+                if (isCurrentRun(myRunId)) {
                     return;
                 }
                 transitionTo(step.state(), step.logMessage());
@@ -63,7 +69,9 @@ public final class StubAgentController implements AgentController, Disposable {
 
     @Override
     public void stop() {
+        runId.incrementAndGet();
         model.setState(AgentUiState.STOPPED);
+        model.setProposalText(null);
         log("Stopped by user");
     }
 
@@ -74,6 +82,7 @@ public final class StubAgentController implements AgentController, Disposable {
             return;
         }
         log("Proposal approved");
+        runId.incrementAndGet();
         model.setProposalText(null);
         model.setState(AgentUiState.IDLE);
     }
@@ -85,6 +94,7 @@ public final class StubAgentController implements AgentController, Disposable {
             return;
         }
         log("Proposal rejected");
+        runId.incrementAndGet();
         model.setProposalText(null);
         model.setState(AgentUiState.STOPPED);
     }
@@ -115,6 +125,10 @@ public final class StubAgentController implements AgentController, Disposable {
 
     private void log(String message) {
         model.appendLog("[" + LocalTime.now().format(LOG_TIME) + "] " + message);
+    }
+
+    private boolean isCurrentRun(long myRunId) {
+        return runId.get() != myRunId;
     }
 
     private record Step(AgentUiState state, String logMessage) {

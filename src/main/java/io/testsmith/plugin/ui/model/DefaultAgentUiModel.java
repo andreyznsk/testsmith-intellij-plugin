@@ -10,6 +10,8 @@ import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class DefaultAgentUiModel implements AgentUiModel {
+    private static final int MAX_LOG_ENTRIES = 500;
+
     private final Object lock = new Object();
     private final List<String> logEntries = new ArrayList<>();
     private final CopyOnWriteArrayList<AgentEventListener> listeners = new CopyOnWriteArrayList<>();
@@ -77,6 +79,9 @@ public final class DefaultAgentUiModel implements AgentUiModel {
         Objects.requireNonNull(entry, "entry");
         synchronized (lock) {
             logEntries.add(entry);
+            if (logEntries.size() > MAX_LOG_ENTRIES) {
+                logEntries.removeFirst();
+            }
         }
         notifyListeners();
     }

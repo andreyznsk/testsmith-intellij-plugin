@@ -136,7 +136,11 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
         boolean runEnabled = state == AgentUiState.IDLE || state == AgentUiState.STOPPED || state == AgentUiState.ERROR;
         runButton.setEnabled(runEnabled);
 
-        boolean stopEnabled = state != AgentUiState.IDLE;
+        boolean stopEnabled = state == AgentUiState.ANALYZING
+                || state == AgentUiState.GENERATING
+                || state == AgentUiState.VERIFYING_TARGET
+                || state == AgentUiState.RUNNING_FULL_SUITE
+                || state == AgentUiState.WAITING_FOR_APPROVAL;
         stopButton.setEnabled(stopEnabled);
 
         boolean waitingForApproval = state == AgentUiState.WAITING_FOR_APPROVAL;
