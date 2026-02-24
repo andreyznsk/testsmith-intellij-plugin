@@ -67,7 +67,8 @@ public final class TestSmithSettingsConfigurable implements SearchableConfigurab
             if (validation.component != null) {
                 validation.component.requestFocusInWindow();
             }
-            throw new ConfigurationException(validation.message);
+            // 2nd arg is title in this IntelliJ SDK
+            throw new ConfigurationException(validation.message, "TestSmith Settings");
         }
 
         ExecutionMode newMode = panel.getExecutionMode();
