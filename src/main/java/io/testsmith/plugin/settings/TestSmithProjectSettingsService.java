@@ -5,6 +5,7 @@ import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.components.StoragePathMacros;
 import com.intellij.openapi.project.Project;
+import com.intellij.util.xmlb.XmlSerializerUtil;
 import org.jetbrains.annotations.NotNull;
 
 @Service(Service.Level.PROJECT)
@@ -26,7 +27,7 @@ public final class TestSmithProjectSettingsService implements com.intellij.opena
 
     @Override
     public void loadState(@NotNull TestSmithProjectSettings state) {
-        this.state = state;
+        XmlSerializerUtil.copyBean(state, this.state);
     }
 
     public TestSmithProjectSettings getSettings() {

@@ -64,6 +64,9 @@ public final class TestSmithSettingsConfigurable implements SearchableConfigurab
 
         com.intellij.openapi.ui.ValidationInfo validation = panel.validateForApply();
         if (validation != null) {
+            if (validation.component != null) {
+                validation.component.requestFocusInWindow();
+            }
             throw new ConfigurationException(validation.message);
         }
 
