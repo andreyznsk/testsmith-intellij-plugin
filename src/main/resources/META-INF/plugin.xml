@@ -14,6 +14,12 @@
                 displayName="TestSmith"
                 groupId="tools"
                 instance="io.testsmith.plugin.settings.ui.TestSmithSettingsConfigurable"/>
+        <toolWindow
+                id="TestSmith"
+                stripeTitle="TestSmith"
+                anchor="right"
+                icon="/icons/testsmith.svg"
+                factoryClass="io.testsmith.plugin.ui.toolwindow.TestSmithToolWindowFactory"/>
     </extensions>
 
     <actions>
