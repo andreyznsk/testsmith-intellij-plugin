@@ -8,6 +8,14 @@
     </description>
     <depends>com.intellij.modules.platform</depends>
 
+    <extensions defaultExtensionNs="com.intellij">
+        <projectConfigurable
+                id="io.testsmith.plugin.settings"
+                displayName="TestSmith"
+                groupId="tools"
+                instance="io.testsmith.plugin.settings.ui.TestSmithSettingsConfigurable"/>
+    </extensions>
+
     <actions>
         <action
                 id="io.testsmith.plugin.HelloAction"
