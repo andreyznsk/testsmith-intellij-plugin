@@ -23,8 +23,8 @@ Iteration 3,18,Prompt contract schema,2,1,Strict format,done
 Iteration 3,19,Structured output validation,2,1,JSON schema,done
 Iteration 3,20,Fix-test loop,2,1,Retry with error context,done
 
-Iteration 4,21,Plugin settings UI,2,1,Agent/Coverage/LLM
-Iteration 4,22,Tool window UI,2,1,Status + logs
+Iteration 4,21,Plugin settings UI,2,1,Agent/Coverage/LLM,done
+Iteration 4,22,Tool window UI,2,1,Status + logs,done
 Iteration 4,23,Manual approval flow,2,1,Diff & accept/reject
 Iteration 4,24,Run/Stop actions,1,0.5,IDE actions
 Iteration 4,25,Progress visualization,1,0.5,Iteration feedback
