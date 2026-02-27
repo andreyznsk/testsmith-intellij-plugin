@@ -87,13 +87,6 @@ public final class SafeTestFileWriter implements TestFileWriter {
         }
     }
 
-    private void refreshVfs(Path path) {
-        VirtualFile vf = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path);
-        if (vf != null) {
-            vf.refresh(false, false);
-        }
-    }
-
     private void assertSafeTarget(Path path) {
         String fileName = path.getFileName() == null ? "" : path.getFileName().toString();
         if ("build.gradle".equals(fileName)
