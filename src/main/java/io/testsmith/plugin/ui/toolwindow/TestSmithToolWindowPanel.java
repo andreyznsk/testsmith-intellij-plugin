@@ -11,7 +11,12 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.JBUI;
 import io.testsmith.plugin.agent.*;
+import io.testsmith.plugin.settings.BuildToolMode;
+import io.testsmith.plugin.settings.LlmProvider;
 import io.testsmith.plugin.settings.TestSmithProjectSettingsService;
+import io.testsmith.plugin.settings.TestSmithSecretsStore;
+import io.testsmith.plugin.settings.TestSmithProjectSettings;
+import io.testsmith.plugin.ui.model.AgentUiState;
 import io.testsmith.plugin.settings.ui.TestSmithSettingsConfigurable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -19,6 +24,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.awt.*;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -32,6 +38,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     private final Project project;
     private final AgentController controller;
     private final AgentEventListener listener;
+    private final TestSmithSecretsStore secretsStore = new TestSmithSecretsStore();
 
     private final JBLabel statusLabel = new JBLabel("State: IDLE");
     private final JBLabel modeLabel = new JBLabel("Mode: Manual");
@@ -53,6 +60,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     private @Nullable ApprovalRequest pendingRequest;
     private @Nullable CompletableFuture<ApprovalDecision> pendingDecision;
     private @Nullable Map<Path, String> pendingEditedFiles;
+    private volatile boolean preflightFailed;
 
     public TestSmithToolWindowPanel(@NotNull Project project, @NotNull AgentController controller) {
         super(new BorderLayout(JBUI.scale(8), JBUI.scale(8)));
@@ -142,7 +150,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     }
 
     private void bindActions() {
-        runButton.addActionListener(event -> controller.start());
+        runButton.addActionListener(event -> startFromUi());
         stopButton.addActionListener(event -> controller.requestStop());
         settingsButton.addActionListener(event ->
                 ShowSettingsUtil.getInstance().showSettingsDialog(project, TestSmithSettingsConfigurable.class));
@@ -152,16 +160,16 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     }
 
     private void refresh() {
-        AgentState state = controller.getState();
-        statusLabel.setText("State: " + state);
+        AgentUiState uiState = toUiState(controller.getState(), preflightFailed);
+        statusLabel.setText("State: " + uiState);
 
         String mode = TestSmithProjectSettingsService.getInstance(project).getSettings().executionMode.toString();
         modeLabel.setText("Mode: " + mode);
 
-        runButton.setEnabled(state == AgentState.IDLE || state == AgentState.STOPPED || state == AgentState.FAILED);
-        stopButton.setEnabled(state == AgentState.RUNNING || state == AgentState.WAITING_FOR_APPROVAL);
+        runButton.setEnabled(uiState == AgentUiState.IDLE || uiState == AgentUiState.ERROR);
+        stopButton.setEnabled(uiState == AgentUiState.RUNNING || uiState == AgentUiState.STOPPING);
 
-        refreshApprovalFields(state);
+        refreshApprovalFields(controller.getState());
 
         List<AgentEvent> events = controller.getRecentEvents();
         StringBuilder builder = new StringBuilder();
@@ -177,6 +185,94 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
         }
         logsArea.setText(builder.toString());
         logsArea.setCaretPosition(logsArea.getDocument().getLength());
+    }
+
+    private void startFromUi() {
+        String error = validateConfiguration();
+        if (error != null) {
+            preflightFailed = true;
+            refresh();
+            Messages.showErrorDialog(project, error, "TestSmith Run Validation");
+            return;
+        }
+        preflightFailed = false;
+        controller.start();
+        refresh();
+    }
+
+    private @Nullable String validateConfiguration() {
+        TestSmithProjectSettings settings = TestSmithProjectSettingsService.getInstance(project).getSettings();
+
+        if (project.isDisposed()) {
+            return "Project is disposed.";
+        }
+        if (settings.jacocoXmlPath == null || settings.jacocoXmlPath.isBlank()) {
+            return "JaCoCo XML path must be configured before Run.";
+        }
+        if (!isBuildToolDetected(settings.buildToolMode)) {
+            return "Build tool is not detected. Configure Build tool in settings or ensure pom.xml / build.gradle exists.";
+        }
+        String llmError = validateLlmConfiguration(settings);
+        if (llmError != null) {
+            return llmError;
+        }
+        return null;
+    }
+
+    private @Nullable String validateLlmConfiguration(TestSmithProjectSettings settings) {
+        LlmProvider provider = settings.provider == null ? LlmProvider.OLLAMA : settings.provider;
+        return switch (provider) {
+            case OLLAMA -> {
+                if (settings.ollama == null || isBlank(settings.ollama.baseUrl) || isBlank(settings.ollama.model)) {
+                    yield "Ollama is not configured: base URL and model are required.";
+                }
+                yield null;
+            }
+            case OPENAI -> {
+                String key = secretsStore.getOpenAiKey(project).orElse("");
+                if (key.isBlank() || settings.openAi == null || isBlank(settings.openAi.model)) {
+                    yield "OpenAI is not configured: API key and model are required.";
+                }
+                yield null;
+            }
+            case GIGACHAT -> {
+                String key = secretsStore.getGigaChatKey(project).orElse("");
+                if (key.isBlank() || settings.gigaChat == null || isBlank(settings.gigaChat.model) || isBlank(settings.gigaChat.endpoint)) {
+                    yield "GigaChat is not configured: API key, model and endpoint are required.";
+                }
+                yield null;
+            }
+        };
+    }
+
+    private boolean isBuildToolDetected(BuildToolMode mode) {
+        if (mode == BuildToolMode.MAVEN || mode == BuildToolMode.GRADLE) {
+            return true;
+        }
+        String base = project.getBasePath();
+        if (base == null || base.isBlank()) {
+            return false;
+        }
+        Path basePath = Path.of(base);
+        return Files.exists(basePath.resolve("pom.xml"))
+                || Files.exists(basePath.resolve("build.gradle"))
+                || Files.exists(basePath.resolve("build.gradle.kts"));
+    }
+
+    private static boolean isBlank(@Nullable String value) {
+        return value == null || value.isBlank();
+    }
+
+    private static @NotNull AgentUiState toUiState(@NotNull AgentState state, boolean preflightFailed) {
+        if (preflightFailed && state == AgentState.IDLE) {
+            return AgentUiState.ERROR;
+        }
+        return switch (state) {
+            case IDLE -> AgentUiState.IDLE;
+            case RUNNING, WAITING_FOR_APPROVAL -> AgentUiState.RUNNING;
+            case STOPPING -> AgentUiState.STOPPING;
+            case ERROR -> AgentUiState.ERROR;
+        };
     }
 
     private void refreshApprovalFields(AgentState state) {

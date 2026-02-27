@@ -27,6 +27,8 @@ public final class StopAgentAction extends AnAction implements DumbAware {
         }
 
         AgentState state = project.getService(AgentControllerService.class).getState();
-        event.getPresentation().setEnabled(state == AgentState.RUNNING || state == AgentState.WAITING_FOR_APPROVAL);
+        event.getPresentation().setEnabled(state == AgentState.RUNNING
+                || state == AgentState.WAITING_FOR_APPROVAL
+                || state == AgentState.STOPPING);
     }
 }

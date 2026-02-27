@@ -27,7 +27,7 @@ public final class RunAgentAction extends AnAction implements DumbAware {
         }
 
         AgentState state = project.getService(AgentControllerService.class).getState();
-        boolean enabled = state == AgentState.IDLE || state == AgentState.STOPPED || state == AgentState.FAILED;
+        boolean enabled = state == AgentState.IDLE || state == AgentState.ERROR;
         event.getPresentation().setEnabled(enabled);
     }
 }

@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -40,7 +41,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     private final AtomicReference<UUID> activeRunId = new AtomicReference<>();
 
     private volatile Future<?> runningTask;
-    private volatile boolean stopRequested;
+    private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private volatile ApprovalGateway approvalGateway = ApprovalGateway.rejecting();
     private volatile PendingApproval pendingApproval;
 
@@ -69,19 +70,19 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     public void start() {
         synchronized (lock) {
             AgentState current = state.get();
-            if (current == AgentState.RUNNING || current == AgentState.STOP_REQUESTED) {
+            if (current == AgentState.RUNNING || current == AgentState.STOPPING) {
                 return;
             }
             if (current == AgentState.WAITING_FOR_APPROVAL) {
                 UUID runId = activeRunId.get();
                 cancelPendingApprovalLocked(runId, "Cancelled pending approval due to new run");
             }
-            stopRequested = false;
+            stopRequested.set(false);
             state.set(AgentState.RUNNING);
             long token = runToken.incrementAndGet();
             UUID runId = UUID.randomUUID();
             activeRunId.set(runId);
-            emit(AgentEventType.RUN_STARTED, "mode=" + modeSupplier.get() + ", runToken=" + token + ", runId=" + runId);
+            emit(AgentEventType.RUN_STARTED, "[Agent] START mode=" + modeSupplier.get() + ", runId=" + runId);
             runningTask = executor.submit(() -> runLoop(token, runId));
         }
     }
@@ -90,20 +91,24 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     public void requestStop() {
         synchronized (lock) {
             AgentState current = state.get();
-            if (current != AgentState.RUNNING && current != AgentState.WAITING_FOR_APPROVAL) {
+            if (current != AgentState.RUNNING && current != AgentState.WAITING_FOR_APPROVAL && current != AgentState.STOPPING) {
                 return;
             }
-            stopRequested = true;
-            state.set(AgentState.STOP_REQUESTED);
-            emit(AgentEventType.STOP_REQUESTED, "Stop requested by user");
-            if (current == AgentState.WAITING_FOR_APPROVAL) {
-                UUID runId = activeRunId.get();
-                cancelPendingApprovalLocked(runId, "Stop requested during approval");
-                runToken.incrementAndGet();
-                state.set(AgentState.STOPPED);
-                emit(AgentEventType.RUN_STOPPED, "Stopped during approval");
+            if (stopRequested.compareAndSet(false, true)) {
+                state.set(AgentState.STOPPING);
+                emit(AgentEventType.STOP_REQUESTED, "[Agent] STOP_REQUESTED");
+                if (current == AgentState.WAITING_FOR_APPROVAL) {
+                    UUID runId = activeRunId.get();
+                    cancelPendingApprovalLocked(runId, "Stop requested during approval");
+                }
             }
         }
+    }
+
+    @Override
+    public boolean isRunning() {
+        AgentState current = state.get();
+        return current == AgentState.RUNNING || current == AgentState.WAITING_FOR_APPROVAL || current == AgentState.STOPPING;
     }
 
     @Override
@@ -143,17 +148,21 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     }
 
     private void runLoop(long token, @NotNull UUID runId) {
+        boolean terminatedByStop = false;
         try {
+            emit(AgentEventType.STEP_STARTED, "[Agent] ITERATION 1");
             runStep("ANALYZE_TARGET", token, 300L);
             runStep("GENERATE_TEST", token, 350L);
+            throwIfStopRequested(token, "after GENERATE_TEST");
             GeneratedCandidate candidate = buildCandidate(runId);
+            throwIfStopRequested(token, "before approval/write");
             if (modeSupplier.get() == ExecutionMode.MANUAL) {
                 if (!awaitManualApprovalAndMaybeWrite(token, runId, candidate)) {
-                    state.set(AgentState.STOPPED);
-                    emit(AgentEventType.RUN_STOPPED, "User rejected test");
+                    emit(AgentEventType.RUN_STOPPED, "[Agent] TERMINATED (manual rejection)");
                     return;
                 }
             } else {
+                throwIfStopRequested(token, "before WRITE_TEST_FILES");
                 writeApprovedFiles(candidate.proposedFiles(), candidate.expectedCurrentContent());
             }
             runStep("VERIFY_TARGET", token, 1200L);
@@ -163,28 +172,36 @@ public final class DefaultAgentController implements AgentController, AutoClosea
             if (isStale(token)) {
                 return;
             }
-            state.set(AgentState.STOPPED);
-            emit(AgentEventType.RUN_STOPPED, "Run finished");
+            emit(AgentEventType.RUN_STOPPED, "[Agent] TERMINATED");
         } catch (StopRequestedException ignored) {
-            // Expected terminal condition after the current phase completes.
+            terminatedByStop = true;
         } catch (CancellationException ignored) {
-            if (stopRequested) {
-                state.set(AgentState.STOPPED);
-                emit(AgentEventType.RUN_STOPPED, "Run cancelled");
+            if (stopRequested.get()) {
+                terminatedByStop = true;
             }
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
-            state.set(AgentState.STOPPED);
-            emit(AgentEventType.RUN_STOPPED, "Run interrupted and stopped");
+            if (stopRequested.get()) {
+                terminatedByStop = true;
+            } else {
+                state.set(AgentState.ERROR);
+                emit(AgentEventType.RUN_FAILED, "Run interrupted unexpectedly");
+            }
         } catch (Exception ex) {
-            state.set(AgentState.FAILED);
+            state.set(AgentState.ERROR);
             emit(AgentEventType.RUN_FAILED, "Run failed: " + ex.getMessage());
         } finally {
             synchronized (lock) {
                 if (Objects.equals(activeRunId.get(), runId)) {
                     cancelPendingApprovalLocked(runId, "Run completed");
                     activeRunId.set(null);
+                    if (state.get() != AgentState.ERROR) {
+                        state.set(AgentState.IDLE);
+                    }
                 }
+            }
+            if (terminatedByStop) {
+                emit(AgentEventType.RUN_STOPPED, "[Agent] TERMINATED");
             }
         }
     }
@@ -196,9 +213,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
         emit(AgentEventType.STEP_STARTED, stepName);
         Thread.sleep(durationMillis);
         emit(AgentEventType.STEP_FINISHED, stepName);
-        if (stopRequested && !isStale(token)) {
-            state.set(AgentState.STOPPED);
-            emit(AgentEventType.RUN_STOPPED, "Stopped after " + stepName);
+        if (stopRequested.get() && !isStale(token)) {
             throw new StopRequestedException();
         }
     }
@@ -210,6 +225,9 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     private boolean awaitManualApprovalAndMaybeWrite(long token, UUID runId, GeneratedCandidate candidate) throws Exception {
         if (isStale(token)) {
             return false;
+        }
+        if (stopRequested.get()) {
+            throw new StopRequestedException();
         }
         state.set(AgentState.WAITING_FOR_APPROVAL);
         emit(AgentEventType.STEP_STARTED, "WAITING_FOR_APPROVAL");
@@ -241,9 +259,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
             emit(AgentEventType.STEP_FINISHED, "WAITING_FOR_APPROVAL");
             return false;
         }
-        if (isStale(token)) {
-            throw new InterruptedException("stale run");
-        }
+        throwIfStopRequested(token, "after manual approval");
         Map<Path, String> approvedFiles = resolveApprovedFiles(request.proposedFiles(), decision.editedFiles());
         state.set(AgentState.RUNNING);
         writeApprovedFiles(approvedFiles, candidate.expectedCurrentContent());
@@ -304,6 +320,16 @@ public final class DefaultAgentController implements AgentController, AutoClosea
         }
         pendingApproval = null;
         emit(AgentEventType.STEP_FINISHED, "WAITING_FOR_APPROVAL (" + reason + ")");
+    }
+
+    private void throwIfStopRequested(long token, String phase) throws InterruptedException {
+        if (isStale(token)) {
+            throw new InterruptedException("stale run");
+        }
+        if (stopRequested.get()) {
+            emit(AgentEventType.STEP_FINISHED, "Cancellation acknowledged at " + phase);
+            throw new StopRequestedException();
+        }
     }
 
     private void emit(AgentEventType type, String message) {

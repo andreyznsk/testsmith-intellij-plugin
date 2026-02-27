@@ -30,7 +30,7 @@ class DefaultAgentControllerTest {
             controller.start();
             controller.start();
 
-            waitForState(controller, AgentState.STOPPED, Duration.ofSeconds(5));
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
 
             long starts = controller.getRecentEvents().stream()
                     .filter(event -> event.type() == AgentEventType.RUN_STARTED)
@@ -60,13 +60,16 @@ class DefaultAgentControllerTest {
             assertTrue(verifyStarted.await(5, TimeUnit.SECONDS), "VERIFY_TARGET step did not start in time");
 
             controller.requestStop();
-            assertEquals(AgentState.STOP_REQUESTED, controller.getState());
-            waitForState(controller, AgentState.STOPPED, Duration.ofSeconds(5));
+            assertEquals(AgentState.STOPPING, controller.getState());
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
 
             List<AgentEvent> events = controller.getRecentEvents();
             int stopRequested = indexOf(events, AgentEventType.STOP_REQUESTED, "Stop requested by user");
+            if (stopRequested < 0) {
+                stopRequested = indexOf(events, AgentEventType.STOP_REQUESTED, "[Agent] STOP_REQUESTED");
+            }
             int verifyFinished = indexOf(events, AgentEventType.STEP_FINISHED, "VERIFY_TARGET");
-            int runStopped = indexOf(events, AgentEventType.RUN_STOPPED, "Stopped after VERIFY_TARGET");
+            int runStopped = indexOf(events, AgentEventType.RUN_STOPPED, "[Agent] TERMINATED");
 
             assertTrue(stopRequested >= 0, "STOP_REQUESTED event missing");
             assertTrue(verifyFinished > stopRequested, "VERIFY_TARGET should finish after stop is requested");
@@ -84,7 +87,7 @@ class DefaultAgentControllerTest {
 
         try {
             controller.start();
-            waitForState(controller, AgentState.STOPPED, Duration.ofSeconds(5));
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
             assertEquals(0, writer.writeCount.get());
         } finally {
             controller.close();
@@ -99,7 +102,7 @@ class DefaultAgentControllerTest {
 
         try {
             controller.start();
-            waitForState(controller, AgentState.STOPPED, Duration.ofSeconds(5));
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
             assertEquals(1, writer.writeCount.get());
             assertFalse(writer.lastWrite.isEmpty());
         } finally {
@@ -120,7 +123,7 @@ class DefaultAgentControllerTest {
             assertNotNull(request);
 
             controller.requestStop();
-            waitForState(controller, AgentState.STOPPED, Duration.ofSeconds(5));
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
 
             assertEquals(1, gateway.cancelCount.get(), "Pending approval should be cancelled");
             assertEquals(0, writer.writeCount.get(), "No writes are allowed after stop");
@@ -145,7 +148,7 @@ class DefaultAgentControllerTest {
             gateway.complete(first.runId(), ApprovalDecision.approve(null));
             gateway.complete(second.runId(), ApprovalDecision.approve(null));
 
-            waitForState(controller, AgentState.STOPPED, Duration.ofSeconds(5));
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
             assertEquals(1, writer.writeCount.get(), "Only latest run may write files");
         } finally {
             controller.close();

@@ -4,11 +4,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-public interface AgentController {
-    void start();
-
-    void requestStop();
-
+public interface AgentController extends AgentSession {
     @NotNull AgentState getState();
 
     void addListener(@NotNull AgentEventListener listener);
