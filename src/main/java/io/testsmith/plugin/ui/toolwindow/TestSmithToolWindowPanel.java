@@ -10,34 +10,19 @@ import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.JBUI;
-import io.testsmith.plugin.agent.ApprovalDecision;
-import io.testsmith.plugin.agent.ApprovalGateway;
-import io.testsmith.plugin.agent.ApprovalRequest;
-import io.testsmith.plugin.agent.AgentController;
-import io.testsmith.plugin.agent.AgentEvent;
-import io.testsmith.plugin.agent.AgentEventListener;
-import io.testsmith.plugin.agent.AgentState;
-import io.testsmith.plugin.agent.DecisionType;
+import io.testsmith.plugin.agent.*;
 import io.testsmith.plugin.settings.TestSmithProjectSettingsService;
 import io.testsmith.plugin.settings.ui.TestSmithSettingsConfigurable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JPanel;
-import java.awt.BorderLayout;
-import java.awt.FlowLayout;
+import javax.swing.*;
+import java.awt.*;
 import java.nio.file.Path;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
@@ -62,6 +47,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     private final JBLabel testClassLabel = new JBLabel("Proposed Test: --");
     private final JBLabel confidenceLabel = new JBLabel("Confidence: --");
     private final JBLabel requiresInfrastructureLabel = new JBLabel("Requires Infrastructure: --");
+    private final JBLabel diffModeLabel = new JBLabel("Diff Preview: Full file replace");
 
     private final Object approvalLock = new Object();
     private @Nullable ApprovalRequest pendingRequest;
@@ -123,9 +109,12 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
         meta.add(confidenceLabel);
         meta.add(Box.createVerticalStrut(JBUI.scale(2)));
         meta.add(requiresInfrastructureLabel);
+        meta.add(Box.createVerticalStrut(JBUI.scale(2)));
+        meta.add(diffModeLabel);
 
         JPanel buttons = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
         buttons.add(approveButton);
+        editButton.setText("Edit (first file, MVP)");
         buttons.add(editButton);
         buttons.add(rejectButton);
         meta.add(Box.createVerticalStrut(JBUI.scale(6)));
