@@ -223,7 +223,7 @@ class DefaultAgentControllerTest {
                 if (requests.isEmpty()) {
                     throw new AssertionError("No approval request received");
                 }
-                return requests.removeFirst();
+                return requests.remove(0);
             }
         }
 

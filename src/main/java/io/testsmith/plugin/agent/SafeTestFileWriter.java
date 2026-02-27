@@ -66,19 +66,32 @@ public final class SafeTestFileWriter implements TestFileWriter {
             }
         }
 
-        ApplicationManager.getApplication().invokeAndWait(() ->
-                WriteCommandAction.runWriteCommandAction(project, "Apply TestSmith generated tests", null, () -> {
-                    for (Map.Entry<Path, String> entry : normalizedFiles.entrySet()) {
-                        Path path = entry.getKey();
-                        String content = entry.getValue();
-                        try {
-                            Files.createDirectories(path.getParent());
-                            Files.writeString(path, content, StandardCharsets.UTF_8);
-                        } catch (Exception ex) {
-                            throw new RuntimeException(ex);
-                        }
-                    }
-                }));
+        Runnable writeTask = () -> WriteCommandAction.runWriteCommandAction(project, "Apply TestSmith Generated Tests", null, () -> {
+            for (Map.Entry<Path, String> entry : normalizedFiles.entrySet()) {
+                Path path = entry.getKey();
+                String content = entry.getValue();
+                try {
+                    Files.createDirectories(path.getParent());
+                    Files.writeString(path, content, StandardCharsets.UTF_8);
+                    refreshVfs(path);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        });
+
+        if (ApplicationManager.getApplication().isDispatchThread()) {
+            writeTask.run();
+        } else {
+            ApplicationManager.getApplication().invokeAndWait(writeTask);
+        }
+    }
+
+    private void refreshVfs(Path path) {
+        VirtualFile vf = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path);
+        if (vf != null) {
+            vf.refresh(false, false);
+        }
     }
 
     private void assertSafeTarget(Path path) {
@@ -112,5 +125,12 @@ public final class SafeTestFileWriter implements TestFileWriter {
 
     private static Path normalize(Path path) {
         return Objects.requireNonNull(path, "path").toAbsolutePath().normalize();
+    }
+
+    private static void refreshVfs(Path path) {
+        VirtualFile vf = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path);
+        if (vf != null) {
+            vf.refresh(false, false);
+        }
     }
 }
