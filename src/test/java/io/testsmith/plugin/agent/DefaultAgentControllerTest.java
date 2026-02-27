@@ -1,6 +1,7 @@
 package io.testsmith.plugin.agent;
 
 import io.testsmith.plugin.settings.ExecutionMode;
+import io.testsmith.plugin.ui.model.AgentUiState;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -170,12 +171,52 @@ class DefaultAgentControllerTest {
         }
     }
 
+    @Test
+    void progressShowsWaitingApprovalThenStoppedOnManualReject() throws Exception {
+        StubTestFileWriter writer = new StubTestFileWriter();
+        ControlledApprovalGateway gateway = new ControlledApprovalGateway();
+        DefaultAgentController controller = newController(() -> ExecutionMode.MANUAL, writer);
+        controller.setApprovalGateway(gateway);
+
+        try {
+            controller.start();
+            ApprovalRequest request = gateway.awaitRequest(Duration.ofSeconds(5));
+            assertNotNull(request);
+            assertEquals(AgentUiState.WAITING_APPROVAL, controller.getProgress().state());
+
+            gateway.complete(request.runId(), ApprovalDecision.reject());
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
+            assertEquals(AgentUiState.STOPPED, controller.getProgress().state());
+        } finally {
+            controller.close();
+        }
+    }
+
+    @Test
+    void autonomousRunPublishesCoverageUpdateAndCompletedState() throws Exception {
+        StubTestFileWriter writer = new StubTestFileWriter();
+        DefaultAgentController controller = newController(() -> ExecutionMode.AUTONOMOUS, writer);
+        controller.setApprovalGateway(new ImmediateApprovalGateway(ApprovalDecision.approve(null)));
+
+        try {
+            controller.start();
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
+            AgentProgress progress = controller.getProgress();
+            assertEquals(AgentUiState.COMPLETED, progress.state());
+            assertEquals(65.0, progress.currentCoverage());
+        } finally {
+            controller.close();
+        }
+    }
+
     private static DefaultAgentController newController(
             java.util.function.Supplier<ExecutionMode> modeSupplier,
             StubTestFileWriter writer
     ) {
         return new DefaultAgentController(
                 modeSupplier,
+                () -> 20,
+                () -> 80.0,
                 java.util.concurrent.Executors.newSingleThreadExecutor(),
                 writer,
                 new UnifiedDiffRenderer()
