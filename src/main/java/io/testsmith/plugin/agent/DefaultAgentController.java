@@ -83,13 +83,13 @@ public final class DefaultAgentController implements AgentController, AutoClosea
             activeRunId.set(runId);
             long now = System.currentTimeMillis();
             progress.set(new AgentProgress(
-                    AgentUiState.RUNNING,
-                    1,
-                    Math.max(1, maxIterationsSupplier.get()),
+                    AgentUiState.IDLE,
+                    0,
+                    0,
                     0.0,
-                    Math.round(targetCoverageSupplier.get() * 10.0) / 10.0,
+                    targetCoverageSupplier.get(),
                     null,
-                    "[Agent] START",
+                    "Idle",
                     now,
                     now
             ));
@@ -385,34 +385,23 @@ public final class DefaultAgentController implements AgentController, AutoClosea
         }
     }
 
-    private void publishProgress(
-            @NotNull AgentUiState uiState,
-            int iteration,
-            double coverage,
-            @Nullable String currentClass,
-            @NotNull String message
-    ) {
-        int maxIterations = Math.max(0, maxIterationsSupplier.get());
-        AgentProgress next = progress.get().with(
+    private void publishProgress(@NotNull AgentUiState uiState, int iteration, double coverage, @Nullable String currentClass, @NotNull String message) {
+        int maxFromSettings = Math.max(0, maxIterationsSupplier.get());
+        int normalizedIteration = uiState == AgentUiState.IDLE ? 0 : Math.max(1, iteration);
+        int normalizedMaxIterations = uiState == AgentUiState.IDLE ? 0 : Math.max(1, maxFromSettings);
+        AgentProgress current = progress.get();
+        AgentProgress snapshot = new AgentProgress(
                 uiState,
-                Math.max(iteration, 0),
-                maxIterations,
+                normalizedIteration,
+                normalizedMaxIterations,
                 coverage,
+                targetCoverageSupplier.get(),
                 currentClass,
-                message
+                message,
+                current.startedAt(),
+                System.currentTimeMillis()
         );
-        progress.set(new AgentProgress(
-                next.state(),
-                next.iteration(),
-                next.maxIterations(),
-                next.currentCoverage(),
-                Math.round(targetCoverageSupplier.get() * 10.0) / 10.0,
-                next.currentClass(),
-                next.lastMessage(),
-                next.startedAt(),
-                next.lastUpdateAt()
-        ));
-        AgentProgress snapshot = progress.get();
+        progress.set(snapshot);
         for (ProgressListener listener : progressListeners) {
             listener.onProgressChanged(snapshot);
         }

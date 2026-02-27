@@ -16,14 +16,30 @@ public record AgentProgress(
         @Nullable Long lastUpdateAt
 ) {
     public AgentProgress {
+        if (state == null) {
+            throw new IllegalArgumentException("state must not be null");
+        }
         if (iteration < 0) {
             throw new IllegalArgumentException("iteration must be >= 0");
         }
         if (maxIterations < 0) {
             throw new IllegalArgumentException("maxIterations must be >= 0");
         }
-        currentCoverage = round1(currentCoverage);
-        targetCoverage = round1(targetCoverage);
+        if (state == AgentUiState.IDLE) {
+            if (iteration != 0) {
+                throw new IllegalArgumentException("iteration must be 0 only in IDLE state");
+            }
+        } else {
+            if (iteration < 1) {
+                throw new IllegalArgumentException("iteration must be >= 1 outside IDLE");
+            }
+            if (maxIterations < 1) {
+                throw new IllegalArgumentException("maxIterations must be >= 1 outside IDLE");
+            }
+        }
+
+        currentCoverage = clamp0to100(round1(currentCoverage));
+        targetCoverage = clamp0to100(round1(targetCoverage));
     }
 
     public static @NotNull AgentProgress initial(double targetCoverage) {
@@ -64,5 +80,9 @@ public record AgentProgress(
 
     private static double round1(double value) {
         return Math.round(value * 10.0) / 10.0;
+    }
+
+    private static double clamp0to100(double value) {
+        return Math.max(0.0, Math.min(100.0, value));
     }
 }
