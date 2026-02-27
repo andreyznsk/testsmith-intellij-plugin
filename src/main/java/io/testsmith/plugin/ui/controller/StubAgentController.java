@@ -8,8 +8,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,67 +32,42 @@ public final class StubAgentController implements AgentController, Disposable {
     @Override
     public void start() {
         AgentUiState current = model.getState();
-        if (current != AgentUiState.IDLE && current != AgentUiState.STOPPED && current != AgentUiState.ERROR) {
+        if (current != AgentUiState.IDLE && current != AgentUiState.ERROR) {
             log("Run ignored: current state is " + current);
             return;
         }
         long myRunId = runId.incrementAndGet();
 
-        log("Run requested");
-
-        transitionTo(AgentUiState.ANALYZING, "Analyzing target class");
-
-        List<Step> steps = new ArrayList<>();
-        steps.add(new Step(AgentUiState.GENERATING, "Generating candidate test"));
-        steps.add(new Step(AgentUiState.VERIFYING_TARGET, "Verifying target class tests"));
-        steps.add(new Step(AgentUiState.RUNNING_FULL_SUITE, "Running full suite (stub)"));
-        steps.add(new Step(AgentUiState.WAITING_FOR_APPROVAL, "Waiting for approval"));
-
-        long delayMillis = 600L;
-        for (int i = 0; i < steps.size(); i++) {
-            Step step = steps.get(i);
-            scheduler.schedule(() -> {
-                if (isStaleRun(myRunId)) {
-                    return;
-                }
-                transitionTo(step.state(), step.logMessage());
-                if (step.state() == AgentUiState.WAITING_FOR_APPROVAL) {
-                    model.setProposalText("// Proposed test diff (stub)\\n+ @Test\\n+ void shouldDoSomething() {\\n+     // TODO: generated test\\n+ }");
-                }
-            }, (i + 1) * delayMillis, TimeUnit.MILLISECONDS);
-        }
+        transitionTo(AgentUiState.RUNNING, "[Agent] START (stub)");
+        scheduler.schedule(() -> {
+            if (isStaleRun(myRunId)) {
+                return;
+            }
+            model.setState(AgentUiState.IDLE);
+            log("[Agent] TERMINATED (stub)");
+        }, 1200L, TimeUnit.MILLISECONDS);
     }
 
     @Override
     public void stop() {
         runId.incrementAndGet();
-        model.setState(AgentUiState.STOPPED);
+        model.setState(AgentUiState.STOPPING);
         model.setProposalText(null);
-        log("Stopped by user");
+        scheduler.schedule(() -> {
+            model.setState(AgentUiState.IDLE);
+            log("[Agent] TERMINATED (stub)");
+        }, 120L, TimeUnit.MILLISECONDS);
+        log("[Agent] STOP_REQUESTED (stub)");
     }
 
     @Override
     public void approve() {
-        if (model.getState() != AgentUiState.WAITING_FOR_APPROVAL) {
-            log("Approve ignored: no proposal pending");
-            return;
-        }
-        log("Proposal approved");
-        runId.incrementAndGet();
-        model.setProposalText(null);
-        model.setState(AgentUiState.IDLE);
+        log("Approve ignored in simplified stub state model");
     }
 
     @Override
     public void reject() {
-        if (model.getState() != AgentUiState.WAITING_FOR_APPROVAL) {
-            log("Reject ignored: no proposal pending");
-            return;
-        }
-        log("Proposal rejected");
-        runId.incrementAndGet();
-        model.setProposalText(null);
-        model.setState(AgentUiState.STOPPED);
+        log("Reject ignored in simplified stub state model");
     }
 
     @Override
@@ -104,11 +77,7 @@ public final class StubAgentController implements AgentController, Disposable {
 
     @Override
     public void editProposal() {
-        if (model.getState() != AgentUiState.WAITING_FOR_APPROVAL) {
-            log("Edit ignored: no proposal pending");
-            return;
-        }
-        log("Edit proposal requested (stub)");
+        log("Edit ignored in simplified stub state model");
     }
 
     @Override
@@ -127,8 +96,5 @@ public final class StubAgentController implements AgentController, Disposable {
 
     private boolean isStaleRun(long myRunId) {
         return runId.get() != myRunId;
-    }
-
-    private record Step(AgentUiState state, String logMessage) {
     }
 }

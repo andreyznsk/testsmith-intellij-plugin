@@ -37,6 +37,11 @@ public final class AgentControllerService implements AgentController, Disposable
     }
 
     @Override
+    public boolean isRunning() {
+        return delegate.isRunning();
+    }
+
+    @Override
     public @NotNull AgentState getState() {
         return delegate.getState();
     }

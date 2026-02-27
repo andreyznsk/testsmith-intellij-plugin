@@ -11,7 +11,9 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.JBUI;
 import io.testsmith.plugin.agent.*;
+import io.testsmith.plugin.agent.AgentPreflightValidator;
 import io.testsmith.plugin.settings.TestSmithProjectSettingsService;
+import io.testsmith.plugin.ui.model.AgentUiState;
 import io.testsmith.plugin.settings.ui.TestSmithSettingsConfigurable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -53,6 +55,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     private @Nullable ApprovalRequest pendingRequest;
     private @Nullable CompletableFuture<ApprovalDecision> pendingDecision;
     private @Nullable Map<Path, String> pendingEditedFiles;
+    private volatile boolean preflightFailed;
 
     public TestSmithToolWindowPanel(@NotNull Project project, @NotNull AgentController controller) {
         super(new BorderLayout(JBUI.scale(8), JBUI.scale(8)));
@@ -142,7 +145,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     }
 
     private void bindActions() {
-        runButton.addActionListener(event -> controller.start());
+        runButton.addActionListener(event -> startFromUi());
         stopButton.addActionListener(event -> controller.requestStop());
         settingsButton.addActionListener(event ->
                 ShowSettingsUtil.getInstance().showSettingsDialog(project, TestSmithSettingsConfigurable.class));
@@ -152,16 +155,16 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     }
 
     private void refresh() {
-        AgentState state = controller.getState();
-        statusLabel.setText("State: " + state);
+        AgentUiState uiState = toUiState(controller.getState(), preflightFailed);
+        statusLabel.setText("State: " + uiState);
 
         String mode = TestSmithProjectSettingsService.getInstance(project).getSettings().executionMode.toString();
         modeLabel.setText("Mode: " + mode);
 
-        runButton.setEnabled(state == AgentState.IDLE || state == AgentState.STOPPED || state == AgentState.FAILED);
-        stopButton.setEnabled(state == AgentState.RUNNING || state == AgentState.WAITING_FOR_APPROVAL);
+        runButton.setEnabled(uiState == AgentUiState.IDLE || uiState == AgentUiState.ERROR);
+        stopButton.setEnabled(uiState == AgentUiState.RUNNING || uiState == AgentUiState.STOPPING);
 
-        refreshApprovalFields(state);
+        refreshApprovalFields(controller.getState());
 
         List<AgentEvent> events = controller.getRecentEvents();
         StringBuilder builder = new StringBuilder();
@@ -177,6 +180,31 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
         }
         logsArea.setText(builder.toString());
         logsArea.setCaretPosition(logsArea.getDocument().getLength());
+    }
+
+    private void startFromUi() {
+        Optional<String> error = AgentPreflightValidator.validate(project);
+        if (error.isPresent()) {
+            preflightFailed = true;
+            refresh();
+            Messages.showErrorDialog(project, error.get(), "TestSmith Run Validation");
+            return;
+        }
+        preflightFailed = false;
+        controller.start();
+        refresh();
+    }
+
+    private static @NotNull AgentUiState toUiState(@NotNull AgentState state, boolean preflightFailed) {
+        if (preflightFailed && state == AgentState.IDLE) {
+            return AgentUiState.ERROR;
+        }
+        return switch (state) {
+            case IDLE -> AgentUiState.IDLE;
+            case RUNNING, WAITING_FOR_APPROVAL -> AgentUiState.RUNNING;
+            case STOPPING -> AgentUiState.STOPPING;
+            case ERROR -> AgentUiState.ERROR;
+        };
     }
 
     private void refreshApprovalFields(AgentState state) {
