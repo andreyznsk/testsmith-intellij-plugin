@@ -27,7 +27,7 @@ public record AgentProgress(
         }
         if (state == AgentUiState.IDLE) {
             if (iteration != 0) {
-                throw new IllegalArgumentException("iteration must be 0 only in IDLE state");
+                throw new IllegalArgumentException("iteration must be 0 in IDLE state");
             }
         } else {
             if (iteration < 1) {

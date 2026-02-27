@@ -207,7 +207,7 @@ class DefaultAgentControllerTest {
     }
 
     @Test
-    void autonomousRunPublishesCoverageUpdateAndCompletedState() throws Exception {
+    void manualRunPublishesStatesInOrder() throws Exception {
         StubTestFileWriter writer = new StubTestFileWriter();
         DefaultAgentController controller = newController(() -> ExecutionMode.AUTONOMOUS, writer);
         controller.setApprovalGateway(new ImmediateApprovalGateway(ApprovalDecision.approve(null)));

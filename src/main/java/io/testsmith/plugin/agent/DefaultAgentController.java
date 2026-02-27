@@ -81,19 +81,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
             long token = runToken.incrementAndGet();
             UUID runId = UUID.randomUUID();
             activeRunId.set(runId);
-            long now = System.currentTimeMillis();
-            progress.set(new AgentProgress(
-                    AgentUiState.IDLE,
-                    0,
-                    0,
-                    0.0,
-                    targetCoverageSupplier.get(),
-                    null,
-                    "Idle",
-                    now,
-                    now
-            ));
-            publishProgress(AgentUiState.RUNNING, 1, 0.0, null, "[Agent] START");
+            publishProgress(AgentUiState.RUNNING, 1, 0.0, null, "[Agent] START", System.currentTimeMillis());
             emit(AgentEventType.RUN_STARTED, "[Agent] START mode=" + modeSupplier.get() + ", runId=" + runId);
             runningTask = executor.submit(() -> runLoop(token, runId));
         }
@@ -386,10 +374,22 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     }
 
     private void publishProgress(@NotNull AgentUiState uiState, int iteration, double coverage, @Nullable String currentClass, @NotNull String message) {
+        publishProgress(uiState, iteration, coverage, currentClass, message, null);
+    }
+
+    private void publishProgress(
+            @NotNull AgentUiState uiState,
+            int iteration,
+            double coverage,
+            @Nullable String currentClass,
+            @NotNull String message,
+            @Nullable Long startedAtOverride
+    ) {
         int maxFromSettings = Math.max(0, maxIterationsSupplier.get());
         int normalizedIteration = uiState == AgentUiState.IDLE ? 0 : Math.max(1, iteration);
         int normalizedMaxIterations = uiState == AgentUiState.IDLE ? 0 : Math.max(1, maxFromSettings);
         AgentProgress current = progress.get();
+        long startedAt = startedAtOverride == null ? current.startedAt() : startedAtOverride;
         AgentProgress snapshot = new AgentProgress(
                 uiState,
                 normalizedIteration,
@@ -398,7 +398,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
                 targetCoverageSupplier.get(),
                 currentClass,
                 message,
-                current.startedAt(),
+                startedAt,
                 System.currentTimeMillis()
         );
         progress.set(snapshot);

@@ -69,4 +69,19 @@ class AgentProgressTest {
         );
         assertEquals(0, idle.iteration());
     }
+
+    @Test
+    void nonIdleRequiresMaxIterationsAtLeastOne() {
+        assertThrows(IllegalArgumentException.class, () -> new AgentProgress(
+                AgentUiState.RUNNING,
+                1,
+                0,
+                10.0,
+                80.0,
+                null,
+                "msg",
+                1L,
+                2L
+        ));
+    }
 }
