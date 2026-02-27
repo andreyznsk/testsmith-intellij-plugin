@@ -18,9 +18,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,15 +42,6 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private volatile ApprovalGateway approvalGateway = ApprovalGateway.rejecting();
     private volatile PendingApproval pendingApproval;
-
-    public DefaultAgentController(@NotNull Supplier<ExecutionMode> modeSupplier) {
-        this(
-                modeSupplier,
-                Executors.newSingleThreadExecutor(newThreadFactory()),
-                new LocalFsTestFileWriter(),
-                new UnifiedDiffRenderer()
-        );
-    }
 
     DefaultAgentController(
             @NotNull Supplier<ExecutionMode> modeSupplier,
@@ -211,7 +200,18 @@ public final class DefaultAgentController implements AgentController, AutoClosea
             throw new InterruptedException("stale run");
         }
         emit(AgentEventType.STEP_STARTED, stepName);
-        Thread.sleep(durationMillis);
+        long remainingMillis = durationMillis;
+        while (remainingMillis > 0L) {
+            long chunk = Math.min(75L, remainingMillis);
+            Thread.sleep(chunk);
+            remainingMillis -= chunk;
+            if (isStale(token)) {
+                throw new InterruptedException("stale run");
+            }
+            if (stopRequested.get()) {
+                break;
+            }
+        }
         emit(AgentEventType.STEP_FINISHED, stepName);
         if (stopRequested.get() && !isStale(token)) {
             throw new StopRequestedException();
@@ -346,14 +346,6 @@ public final class DefaultAgentController implements AgentController, AutoClosea
         }
     }
 
-    private static ThreadFactory newThreadFactory() {
-        return runnable -> {
-            Thread thread = new Thread(runnable, "testsmith-agent-runner");
-            thread.setDaemon(true);
-            return thread;
-        };
-    }
-
     private static final class StopRequestedException extends RuntimeException {
     }
 
@@ -377,42 +369,4 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     ) {
     }
 
-    private static final class LocalFsTestFileWriter implements TestFileWriter {
-        @Override
-        public @NotNull Path resolveTestFile(@NotNull String testClassFqn) {
-            String relative = testClassFqn.replace('.', '/') + ".java";
-            return Path.of(System.getProperty("user.dir"))
-                    .resolve("src")
-                    .resolve("test")
-                    .resolve("java")
-                    .resolve(relative)
-                    .toAbsolutePath()
-                    .normalize();
-        }
-
-        @Override
-        public @Nullable String readCurrentContent(@NotNull Path path) throws Exception {
-            Path normalized = path.toAbsolutePath().normalize();
-            return java.nio.file.Files.exists(normalized)
-                    ? java.nio.file.Files.readString(normalized)
-                    : null;
-        }
-
-        @Override
-        public void writeFiles(@NotNull Map<Path, String> files, @NotNull Map<Path, String> expectedCurrentContent) throws Exception {
-            for (Map.Entry<Path, String> entry : files.entrySet()) {
-                Path path = entry.getKey().toAbsolutePath().normalize();
-                String expected = expectedCurrentContent.get(path);
-                String actual = readCurrentContent(path);
-                if (!Objects.equals(expected, actual)) {
-                    throw new WriteSafetyException("File changed on disk before apply: " + path);
-                }
-            }
-            for (Map.Entry<Path, String> entry : files.entrySet()) {
-                Path path = entry.getKey().toAbsolutePath().normalize();
-                java.nio.file.Files.createDirectories(path.getParent());
-                java.nio.file.Files.writeString(path, entry.getValue());
-            }
-        }
-    }
 }

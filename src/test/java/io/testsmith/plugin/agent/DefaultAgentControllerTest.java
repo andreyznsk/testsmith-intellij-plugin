@@ -64,16 +64,31 @@ class DefaultAgentControllerTest {
             waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
 
             List<AgentEvent> events = controller.getRecentEvents();
-            int stopRequested = indexOf(events, AgentEventType.STOP_REQUESTED, "Stop requested by user");
-            if (stopRequested < 0) {
-                stopRequested = indexOf(events, AgentEventType.STOP_REQUESTED, "[Agent] STOP_REQUESTED");
-            }
+            int stopRequested = indexOf(events, AgentEventType.STOP_REQUESTED, "[Agent] STOP_REQUESTED");
             int verifyFinished = indexOf(events, AgentEventType.STEP_FINISHED, "VERIFY_TARGET");
             int runStopped = indexOf(events, AgentEventType.RUN_STOPPED, "[Agent] TERMINATED");
 
             assertTrue(stopRequested >= 0, "STOP_REQUESTED event missing");
             assertTrue(verifyFinished > stopRequested, "VERIFY_TARGET should finish after stop is requested");
             assertTrue(runStopped > verifyFinished, "Run should stop after current step finishes");
+        } finally {
+            controller.close();
+        }
+    }
+
+    @Test
+    void stopDuringWaitingStepIsResponsive() throws Exception {
+        StubTestFileWriter writer = new StubTestFileWriter();
+        DefaultAgentController controller = newController(() -> ExecutionMode.MANUAL, writer);
+        controller.setApprovalGateway(new ImmediateApprovalGateway(ApprovalDecision.approve(null)));
+
+        try {
+            controller.start();
+            long started = System.nanoTime();
+            controller.requestStop();
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
+            long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+            assertTrue(elapsedMillis < 250L, "Stop should complete quickly for waiting-only steps, elapsed=" + elapsedMillis + "ms");
         } finally {
             controller.close();
         }
