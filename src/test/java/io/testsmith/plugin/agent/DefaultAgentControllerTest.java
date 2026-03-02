@@ -259,18 +259,26 @@ class DefaultAgentControllerTest {
         ControlledApprovalGateway gateway = new ControlledApprovalGateway();
         DefaultAgentController controller = newController(() -> ExecutionMode.MANUAL, writer);
         controller.setApprovalGateway(gateway);
+        FirstLlmClient firstClient = new FirstLlmClient();
+        SecondLlmClient secondClient = new SecondLlmClient();
 
         try {
-            controller.start(new FirstLlmClient());
+            controller.start(firstClient);
             ApprovalRequest firstRequest = gateway.awaitRequest(Duration.ofSeconds(5));
-            controller.setLlmClient(new SecondLlmClient());
+            controller.setLlmClient(secondClient);
             gateway.complete(firstRequest.runId(), ApprovalDecision.reject());
             waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
+
+            assertEquals(1, firstClient.callCount.get());
+            assertEquals(0, secondClient.callCount.get());
 
             controller.start();
             ApprovalRequest secondRequest = gateway.awaitRequest(Duration.ofSeconds(5));
             gateway.complete(secondRequest.runId(), ApprovalDecision.reject());
             waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
+
+            assertEquals(1, firstClient.callCount.get());
+            assertEquals(1, secondClient.callCount.get());
 
             List<String> startedEvents = controller.getRecentEvents().stream()
                     .filter(event -> event.type() == AgentEventType.RUN_STARTED)
@@ -425,15 +433,21 @@ class DefaultAgentControllerTest {
     }
 
     private static final class FirstLlmClient implements LlmClient {
+        private final AtomicInteger callCount = new AtomicInteger();
+
         @Override
         public String generateRaw(LlmRequest request) {
+            callCount.incrementAndGet();
             return "";
         }
     }
 
     private static final class SecondLlmClient implements LlmClient {
+        private final AtomicInteger callCount = new AtomicInteger();
+
         @Override
         public String generateRaw(LlmRequest request) {
+            callCount.incrementAndGet();
             return "";
         }
     }
