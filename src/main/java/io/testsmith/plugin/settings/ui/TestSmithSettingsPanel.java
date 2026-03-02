@@ -139,7 +139,7 @@ public final class TestSmithSettingsPanel implements Disposable {
         targetCoverageSpinner.setValue(settings.targetCoverage);
         exclusionsArea.setText(String.join("\n", safeList(settings.exclusions)));
 
-        providerCombo.setSelectedItem(settings.provider);
+        providerCombo.setSelectedItem(settings.provider == null ? LlmProvider.OLLAMA : settings.provider);
 
         TestSmithProjectSettings.OllamaConfig ollama = settings.ollama == null ? new TestSmithProjectSettings.OllamaConfig() : settings.ollama;
         ollamaBaseUrlField.setText(nullToEmpty(ollama.baseUrl));
@@ -192,7 +192,8 @@ public final class TestSmithSettingsPanel implements Disposable {
         if (!Objects.equals(parseExclusions(), safeList(settings.exclusions))) {
             return true;
         }
-        if (!Objects.equals(providerCombo.getSelectedItem(), settings.provider)) {
+        LlmProvider provider = settings.provider == null ? LlmProvider.OLLAMA : settings.provider;
+        if (!Objects.equals(providerCombo.getSelectedItem(), provider)) {
             return true;
         }
         if (!Objects.equals(ollamaBaseUrlField.getText().trim(), nullToEmpty(ollama.baseUrl))) {
@@ -294,11 +295,31 @@ public final class TestSmithSettingsPanel implements Disposable {
             }
         }
         LlmProvider provider = (LlmProvider) providerCombo.getSelectedItem();
+        if (provider == null) {
+            provider = LlmProvider.OLLAMA;
+        }
+        if (provider == LlmProvider.OLLAMA) {
+            if (ollamaBaseUrlField.getText().trim().isEmpty()) {
+                return new ValidationInfo("Ollama base URL is required.", ollamaBaseUrlField);
+            }
+            if (ollamaModelField.getText().trim().isEmpty()) {
+                return new ValidationInfo("Ollama model is required.", ollamaModelField);
+            }
+        }
         if (provider == LlmProvider.OPENAI && getOpenAiKey().isEmpty()) {
             return new ValidationInfo("OpenAI API key is required.", openAiApiKeyField);
         }
+        if (provider == LlmProvider.OPENAI && openAiModelField.getText().trim().isEmpty()) {
+            return new ValidationInfo("OpenAI model is required.", openAiModelField);
+        }
         if (provider == LlmProvider.GIGACHAT && getGigaChatKey().isEmpty()) {
             return new ValidationInfo("GigaChat API key is required.", gigaChatApiKeyField);
+        }
+        if (provider == LlmProvider.GIGACHAT && gigaChatModelField.getText().trim().isEmpty()) {
+            return new ValidationInfo("GigaChat model is required.", gigaChatModelField);
+        }
+        if (provider == LlmProvider.GIGACHAT && gigaChatEndpointField.getText().trim().isEmpty()) {
+            return new ValidationInfo("GigaChat endpoint is required.", gigaChatEndpointField);
         }
         return null;
     }
@@ -463,7 +484,7 @@ public final class TestSmithSettingsPanel implements Disposable {
         FormBuilder builder = FormBuilder.createFormBuilder();
         builder.addLabeledComponent("API key:", gigaChatApiKeyField);
         builder.addLabeledComponent("Model:", gigaChatModelField);
-        builder.addLabeledComponent("Endpoint (optional):", gigaChatEndpointField);
+        builder.addLabeledComponent("Endpoint:", gigaChatEndpointField);
         return builder.getPanel();
     }
 
