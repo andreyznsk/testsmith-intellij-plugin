@@ -27,7 +27,7 @@ Iteration 4,21,Plugin settings UI,2,1,Agent/Coverage/LLM,done
 Iteration 4,22,Tool window UI,2,1,Status + logs,done
 Iteration 4,23,Manual approval flow,2,1,Diff & accept/reject,done
 Iteration 4,24,Run/Stop actions,1,0.5,IDE actions,done
-Iteration 4,25,Progress visualization,1,0.5,Iteration feedback
+Iteration 4,25,Progress visualization,1,0.5,Iteration feedback,done
 
 Iteration 5,26,Provider switching mechanism,2,1,Strategy pattern
 Iteration 5,27,OpenAI provider,2,1,API integration
