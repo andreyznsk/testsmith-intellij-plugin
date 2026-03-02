@@ -2,9 +2,7 @@ package io.testsmith.plugin.llm;
 
 import io.testsmith.plugin.llm.api.LlmClient;
 import io.testsmith.plugin.llm.api.LlmMisconfigurationException;
-import io.testsmith.plugin.llm.gigachat.GigaChatLlmClient;
 import io.testsmith.plugin.llm.ollama.OllamaLlmClient;
-import io.testsmith.plugin.llm.openai.OpenAiLlmClient;
 import io.testsmith.plugin.settings.LlmProvider;
 import io.testsmith.plugin.settings.TestSmithProjectSettings;
 import io.testsmith.plugin.settings.TestSmithSecretsStore;
@@ -29,18 +27,24 @@ class LlmClientFactoryTest {
     }
 
     @Test
-    void switchingProviderChangesClientImplementation() {
+    void unsupportedProvidersFailFastWithActionableMessage() {
         LlmClientFactory factory = newFactory(new ArrayList<>(), new ArrayList<>());
         TestSmithProjectSettings settings = new TestSmithProjectSettings();
 
         settings.provider = LlmProvider.OPENAI;
-        LlmClient openAiClient = factory.create(settings, "sk-openai", "");
-        assertInstanceOf(OpenAiLlmClient.class, openAiClient);
+        LlmMisconfigurationException openAiError = assertThrows(
+                LlmMisconfigurationException.class,
+                () -> factory.create(settings, "sk-openai", "")
+        );
+        assertTrue(openAiError.getMessage().contains("Provider not supported yet: OpenAI."));
 
         settings.provider = LlmProvider.GIGACHAT;
         settings.gigaChat.endpoint = "https://gigachat.example/api";
-        LlmClient gigaChatClient = factory.create(settings, "", "gigachat-token");
-        assertInstanceOf(GigaChatLlmClient.class, gigaChatClient);
+        LlmMisconfigurationException gigaChatError = assertThrows(
+                LlmMisconfigurationException.class,
+                () -> factory.create(settings, "", "gigachat-token")
+        );
+        assertTrue(gigaChatError.getMessage().contains("Provider not supported yet: GigaChat."));
     }
 
     @Test
@@ -54,7 +58,7 @@ class LlmClientFactoryTest {
                 () -> factory.create(settings, "", "")
         );
 
-        assertTrue(error.getMessage().contains("OpenAI is not configured"));
+        assertTrue(error.getMessage().contains("Provider not supported yet: OpenAI."));
     }
 
     @Test

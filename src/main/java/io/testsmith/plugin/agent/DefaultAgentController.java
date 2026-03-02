@@ -1,5 +1,8 @@
 package io.testsmith.plugin.agent;
 
+import io.testsmith.plugin.llm.api.LlmClient;
+import io.testsmith.plugin.llm.api.LlmException;
+import io.testsmith.plugin.llm.api.LlmRequest;
 import io.testsmith.plugin.settings.ExecutionMode;
 import io.testsmith.plugin.ui.model.AgentUiState;
 import org.jetbrains.annotations.NotNull;
@@ -42,6 +45,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     private final AtomicReference<AgentProgress> progress = new AtomicReference<>(AgentProgress.initial(0.0));
     private final AtomicLong runToken = new AtomicLong(0L);
     private final AtomicReference<UUID> activeRunId = new AtomicReference<>();
+    private final AtomicReference<LlmClient> configuredLlmClient = new AtomicReference<>(NoOpLlmClient.INSTANCE);
 
     private volatile Future<?> runningTask;
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
@@ -80,11 +84,26 @@ public final class DefaultAgentController implements AgentController, AutoClosea
             state.set(AgentState.RUNNING);
             long token = runToken.incrementAndGet();
             UUID runId = UUID.randomUUID();
+            LlmClient runLlmClient = configuredLlmClient.get();
             activeRunId.set(runId);
             publishProgress(AgentUiState.RUNNING, 1, 0.0, null, "[Agent] START", System.currentTimeMillis());
-            emit(AgentEventType.RUN_STARTED, "[Agent] START mode=" + modeSupplier.get() + ", runId=" + runId);
+            emit(
+                    AgentEventType.RUN_STARTED,
+                    "[Agent] START mode=" + modeSupplier.get()
+                            + ", runId=" + runId
+                            + ", llmClient=" + runLlmClient.getClass().getSimpleName()
+            );
             runningTask = executor.submit(() -> runLoop(token, runId));
         }
+    }
+
+    public void start(@NotNull LlmClient llmClient) {
+        configuredLlmClient.set(Objects.requireNonNull(llmClient, "llmClient"));
+        start();
+    }
+
+    public void setLlmClient(@NotNull LlmClient llmClient) {
+        configuredLlmClient.set(Objects.requireNonNull(llmClient, "llmClient"));
     }
 
     @Override
@@ -422,6 +441,15 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     }
 
     private static final class StopRequestedException extends RuntimeException {
+    }
+
+    private static final class NoOpLlmClient implements LlmClient {
+        private static final NoOpLlmClient INSTANCE = new NoOpLlmClient();
+
+        @Override
+        public String generateRaw(LlmRequest request) {
+            throw new LlmException("No LLM client configured for this run.");
+        }
     }
 
     private record PendingApproval(

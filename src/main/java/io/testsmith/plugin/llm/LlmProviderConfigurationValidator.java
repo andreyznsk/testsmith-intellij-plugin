@@ -40,23 +40,8 @@ public final class LlmProviderConfigurationValidator {
                 }
                 yield Optional.empty();
             }
-            case OPENAI -> {
-                if (isBlank(openAiKey)
-                        || effectiveSettings.openAi == null
-                        || isBlank(effectiveSettings.openAi.model)) {
-                    yield Optional.of("OpenAI is not configured: API key and model are required.");
-                }
-                yield Optional.empty();
-            }
-            case GIGACHAT -> {
-                if (isBlank(gigaChatKey)
-                        || effectiveSettings.gigaChat == null
-                        || isBlank(effectiveSettings.gigaChat.model)
-                        || isBlank(effectiveSettings.gigaChat.endpoint)) {
-                    yield Optional.of("GigaChat is not configured: API key, model and endpoint are required.");
-                }
-                yield Optional.empty();
-            }
+            case OPENAI -> Optional.of("Provider not supported yet: OpenAI.");
+            case GIGACHAT -> Optional.of("Provider not supported yet: GigaChat.");
         };
     }
 

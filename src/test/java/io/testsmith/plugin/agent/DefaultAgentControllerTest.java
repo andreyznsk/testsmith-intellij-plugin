@@ -1,5 +1,7 @@
 package io.testsmith.plugin.agent;
 
+import io.testsmith.plugin.llm.api.LlmClient;
+import io.testsmith.plugin.llm.api.LlmRequest;
 import io.testsmith.plugin.settings.ExecutionMode;
 import io.testsmith.plugin.ui.model.AgentUiState;
 import org.junit.jupiter.api.Test;
@@ -251,6 +253,38 @@ class DefaultAgentControllerTest {
         }
     }
 
+    @Test
+    void llmClientIsCapturedPerRunAndSwitchAppliesToNextRun() throws Exception {
+        StubTestFileWriter writer = new StubTestFileWriter();
+        ControlledApprovalGateway gateway = new ControlledApprovalGateway();
+        DefaultAgentController controller = newController(() -> ExecutionMode.MANUAL, writer);
+        controller.setApprovalGateway(gateway);
+
+        try {
+            controller.start(new FirstLlmClient());
+            ApprovalRequest firstRequest = gateway.awaitRequest(Duration.ofSeconds(5));
+            controller.setLlmClient(new SecondLlmClient());
+            gateway.complete(firstRequest.runId(), ApprovalDecision.reject());
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
+
+            controller.start();
+            ApprovalRequest secondRequest = gateway.awaitRequest(Duration.ofSeconds(5));
+            gateway.complete(secondRequest.runId(), ApprovalDecision.reject());
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
+
+            List<String> startedEvents = controller.getRecentEvents().stream()
+                    .filter(event -> event.type() == AgentEventType.RUN_STARTED)
+                    .map(AgentEvent::message)
+                    .toList();
+
+            assertEquals(2, startedEvents.size());
+            assertTrue(startedEvents.get(0).contains("llmClient=FirstLlmClient"));
+            assertTrue(startedEvents.get(1).contains("llmClient=SecondLlmClient"));
+        } finally {
+            controller.close();
+        }
+    }
+
     private static DefaultAgentController newController(
             java.util.function.Supplier<ExecutionMode> modeSupplier,
             StubTestFileWriter writer
@@ -387,6 +421,20 @@ class DefaultAgentControllerTest {
             writeCount.incrementAndGet();
             lastWrite.clear();
             lastWrite.putAll(files);
+        }
+    }
+
+    private static final class FirstLlmClient implements LlmClient {
+        @Override
+        public String generateRaw(LlmRequest request) {
+            return "";
+        }
+    }
+
+    private static final class SecondLlmClient implements LlmClient {
+        @Override
+        public String generateRaw(LlmRequest request) {
+            return "";
         }
     }
 }
