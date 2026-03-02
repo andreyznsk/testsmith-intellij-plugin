@@ -1,6 +1,7 @@
 package io.testsmith.plugin.agent;
 
 import io.testsmith.plugin.settings.ExecutionMode;
+import io.testsmith.plugin.ui.model.AgentUiState;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,12 +30,16 @@ public final class DefaultAgentController implements AgentController, AutoClosea
 
     private final Object lock = new Object();
     private final Supplier<ExecutionMode> modeSupplier;
+    private final Supplier<Integer> maxIterationsSupplier;
+    private final Supplier<Double> targetCoverageSupplier;
     private final ExecutorService executor;
     private final TestFileWriter testFileWriter;
     private final UnifiedDiffRenderer diffRenderer;
     private final CopyOnWriteArrayList<AgentEventListener> listeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<ProgressListener> progressListeners = new CopyOnWriteArrayList<>();
     private final Deque<AgentEvent> recentEvents = new ArrayDeque<>();
     private final AtomicReference<AgentState> state = new AtomicReference<>(AgentState.IDLE);
+    private final AtomicReference<AgentProgress> progress = new AtomicReference<>(AgentProgress.initial(0.0));
     private final AtomicLong runToken = new AtomicLong(0L);
     private final AtomicReference<UUID> activeRunId = new AtomicReference<>();
 
@@ -45,14 +50,19 @@ public final class DefaultAgentController implements AgentController, AutoClosea
 
     DefaultAgentController(
             @NotNull Supplier<ExecutionMode> modeSupplier,
+            @NotNull Supplier<Integer> maxIterationsSupplier,
+            @NotNull Supplier<Double> targetCoverageSupplier,
             @NotNull ExecutorService executor,
             @NotNull TestFileWriter testFileWriter,
             @NotNull UnifiedDiffRenderer diffRenderer
     ) {
         this.modeSupplier = Objects.requireNonNull(modeSupplier, "modeSupplier");
+        this.maxIterationsSupplier = Objects.requireNonNull(maxIterationsSupplier, "maxIterationsSupplier");
+        this.targetCoverageSupplier = Objects.requireNonNull(targetCoverageSupplier, "targetCoverageSupplier");
         this.executor = Objects.requireNonNull(executor, "executor");
         this.testFileWriter = Objects.requireNonNull(testFileWriter, "testFileWriter");
         this.diffRenderer = Objects.requireNonNull(diffRenderer, "diffRenderer");
+        this.progress.set(AgentProgress.initial(targetCoverageSupplier.get()));
     }
 
     @Override
@@ -71,6 +81,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
             long token = runToken.incrementAndGet();
             UUID runId = UUID.randomUUID();
             activeRunId.set(runId);
+            publishProgress(AgentUiState.RUNNING, 1, 0.0, null, "[Agent] START", System.currentTimeMillis());
             emit(AgentEventType.RUN_STARTED, "[Agent] START mode=" + modeSupplier.get() + ", runId=" + runId);
             runningTask = executor.submit(() -> runLoop(token, runId));
         }
@@ -85,6 +96,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
             }
             if (stopRequested.compareAndSet(false, true)) {
                 state.set(AgentState.STOPPING);
+                publishProgress(AgentUiState.STOPPING, progress.get().iteration(), progress.get().currentCoverage(), progress.get().currentClass(), "[Agent] STOP_REQUESTED");
                 emit(AgentEventType.STOP_REQUESTED, "[Agent] STOP_REQUESTED");
                 if (current == AgentState.WAITING_FOR_APPROVAL) {
                     UUID runId = activeRunId.get();
@@ -103,6 +115,22 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     @Override
     public @NotNull AgentState getState() {
         return state.get();
+    }
+
+    @Override
+    public @NotNull AgentProgress getProgress() {
+        return progress.get();
+    }
+
+    @Override
+    public void addProgressListener(@NotNull ProgressListener listener) {
+        progressListeners.add(Objects.requireNonNull(listener, "listener"));
+        listener.onProgressChanged(progress.get());
+    }
+
+    @Override
+    public void removeProgressListener(@NotNull ProgressListener listener) {
+        progressListeners.remove(listener);
     }
 
     @Override
@@ -140,13 +168,17 @@ public final class DefaultAgentController implements AgentController, AutoClosea
         boolean terminatedByStop = false;
         try {
             emit(AgentEventType.STEP_STARTED, "[Agent] ITERATION 1");
+            publishProgress(AgentUiState.ANALYZING, 1, 0.0, "com.example.Service", "Analyzing target");
             runStep("ANALYZE_TARGET", token, 300L);
+            publishProgress(AgentUiState.GENERATING, 1, 0.0, "com.example.Service", "Generating test");
             runStep("GENERATE_TEST", token, 350L);
             throwIfStopRequested(token, "after GENERATE_TEST");
             GeneratedCandidate candidate = buildCandidate(runId);
             throwIfStopRequested(token, "before approval/write");
             if (modeSupplier.get() == ExecutionMode.MANUAL) {
+                publishProgress(AgentUiState.WAITING_APPROVAL, 1, 0.0, candidate.targetClassFqn(), "Waiting for manual approval");
                 if (!awaitManualApprovalAndMaybeWrite(token, runId, candidate)) {
+                    publishProgress(AgentUiState.STOPPED, 1, 0.0, candidate.targetClassFqn(), "Manual rejection");
                     emit(AgentEventType.RUN_STOPPED, "[Agent] TERMINATED (manual rejection)");
                     return;
                 }
@@ -154,13 +186,16 @@ public final class DefaultAgentController implements AgentController, AutoClosea
                 throwIfStopRequested(token, "before WRITE_TEST_FILES");
                 writeApprovedFiles(candidate.proposedFiles(), candidate.expectedCurrentContent());
             }
+            publishProgress(AgentUiState.VERIFYING, 1, 0.0, candidate.targetClassFqn(), "Verifying target");
             runStep("VERIFY_TARGET", token, 1200L);
             if (modeSupplier.get() == ExecutionMode.AUTONOMOUS) {
                 runStep("RUN_FULL_SUITE", token, 750L);
+                publishProgress(AgentUiState.COVERAGE_UPDATE, 1, 65.0, candidate.targetClassFqn(), "Coverage update");
             }
             if (isStale(token)) {
                 return;
             }
+            publishProgress(AgentUiState.COMPLETED, 1, progress.get().currentCoverage(), candidate.targetClassFqn(), "[Agent] TERMINATED");
             emit(AgentEventType.RUN_STOPPED, "[Agent] TERMINATED");
         } catch (StopRequestedException ignored) {
             terminatedByStop = true;
@@ -174,10 +209,12 @@ public final class DefaultAgentController implements AgentController, AutoClosea
                 terminatedByStop = true;
             } else {
                 state.set(AgentState.ERROR);
+                publishProgress(AgentUiState.ERROR, progress.get().iteration(), progress.get().currentCoverage(), progress.get().currentClass(), "Run interrupted unexpectedly");
                 emit(AgentEventType.RUN_FAILED, "Run interrupted unexpectedly");
             }
         } catch (Exception ex) {
             state.set(AgentState.ERROR);
+            publishProgress(AgentUiState.ERROR, progress.get().iteration(), progress.get().currentCoverage(), progress.get().currentClass(), "Run failed: " + ex.getMessage());
             emit(AgentEventType.RUN_FAILED, "Run failed: " + ex.getMessage());
         } finally {
             synchronized (lock) {
@@ -186,6 +223,9 @@ public final class DefaultAgentController implements AgentController, AutoClosea
                     activeRunId.set(null);
                     if (state.get() != AgentState.ERROR) {
                         state.set(AgentState.IDLE);
+                        AgentProgress current = progress.get();
+                        AgentUiState terminalState = terminatedByStop ? AgentUiState.STOPPED : current.state();
+                        publishProgress(terminalState, current.iteration(), current.currentCoverage(), current.currentClass(), terminatedByStop ? "[Agent] TERMINATED" : current.lastMessage());
                     }
                 }
             }
@@ -262,6 +302,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
         throwIfStopRequested(token, "after manual approval");
         Map<Path, String> approvedFiles = resolveApprovedFiles(request.proposedFiles(), decision.editedFiles());
         state.set(AgentState.RUNNING);
+        publishProgress(AgentUiState.RUNNING, 1, progress.get().currentCoverage(), request.targetClassFqn(), "Approval received");
         writeApprovedFiles(approvedFiles, candidate.expectedCurrentContent());
         emit(AgentEventType.STEP_FINISHED, "WAITING_FOR_APPROVAL");
         return true;
@@ -329,6 +370,40 @@ public final class DefaultAgentController implements AgentController, AutoClosea
         if (stopRequested.get()) {
             emit(AgentEventType.STEP_FINISHED, "Cancellation acknowledged at " + phase);
             throw new StopRequestedException();
+        }
+    }
+
+    private void publishProgress(@NotNull AgentUiState uiState, int iteration, double coverage, @Nullable String currentClass, @NotNull String message) {
+        publishProgress(uiState, iteration, coverage, currentClass, message, null);
+    }
+
+    private void publishProgress(
+            @NotNull AgentUiState uiState,
+            int iteration,
+            double coverage,
+            @Nullable String currentClass,
+            @NotNull String message,
+            @Nullable Long startedAtOverride
+    ) {
+        int maxFromSettings = Math.max(0, maxIterationsSupplier.get());
+        int normalizedIteration = uiState == AgentUiState.IDLE ? 0 : Math.max(1, iteration);
+        int normalizedMaxIterations = uiState == AgentUiState.IDLE ? 0 : Math.max(1, maxFromSettings);
+        AgentProgress current = progress.get();
+        long startedAt = startedAtOverride == null ? current.startedAt() : startedAtOverride;
+        AgentProgress snapshot = new AgentProgress(
+                uiState,
+                normalizedIteration,
+                normalizedMaxIterations,
+                coverage,
+                targetCoverageSupplier.get(),
+                currentClass,
+                message,
+                startedAt,
+                System.currentTimeMillis()
+        );
+        progress.set(snapshot);
+        for (ProgressListener listener : progressListeners) {
+            listener.onProgressChanged(snapshot);
         }
     }
 

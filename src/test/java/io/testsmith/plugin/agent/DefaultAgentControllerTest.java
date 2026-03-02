@@ -1,6 +1,7 @@
 package io.testsmith.plugin.agent;
 
 import io.testsmith.plugin.settings.ExecutionMode;
+import io.testsmith.plugin.ui.model.AgentUiState;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -37,6 +38,20 @@ class DefaultAgentControllerTest {
                     .count();
             assertEquals(1L, starts);
             assertEquals(0, writer.writeCount.get(), "Reject should prevent writes");
+        } finally {
+            controller.close();
+        }
+    }
+
+    @Test
+    void progressListenerGetsInitialSnapshotImmediately() {
+        StubTestFileWriter writer = new StubTestFileWriter();
+        DefaultAgentController controller = newController(() -> ExecutionMode.MANUAL, writer);
+        try {
+            List<AgentProgress> snapshots = new ArrayList<>();
+            controller.addProgressListener(snapshots::add);
+            assertFalse(snapshots.isEmpty());
+            assertEquals(AgentUiState.IDLE, snapshots.getFirst().state());
         } finally {
             controller.close();
         }
@@ -170,12 +185,80 @@ class DefaultAgentControllerTest {
         }
     }
 
+    @Test
+    void progressShowsWaitingApprovalThenStoppedOnManualReject() throws Exception {
+        StubTestFileWriter writer = new StubTestFileWriter();
+        ControlledApprovalGateway gateway = new ControlledApprovalGateway();
+        DefaultAgentController controller = newController(() -> ExecutionMode.MANUAL, writer);
+        controller.setApprovalGateway(gateway);
+
+        try {
+            controller.start();
+            ApprovalRequest request = gateway.awaitRequest(Duration.ofSeconds(5));
+            assertNotNull(request);
+            assertEquals(AgentUiState.WAITING_APPROVAL, controller.getProgress().state());
+
+            gateway.complete(request.runId(), ApprovalDecision.reject());
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
+            assertEquals(AgentUiState.STOPPED, controller.getProgress().state());
+        } finally {
+            controller.close();
+        }
+    }
+
+    @Test
+    void manualRunPublishesStatesInOrder() throws Exception {
+        StubTestFileWriter writer = new StubTestFileWriter();
+        DefaultAgentController controller = newController(() -> ExecutionMode.AUTONOMOUS, writer);
+        controller.setApprovalGateway(new ImmediateApprovalGateway(ApprovalDecision.approve(null)));
+
+        try {
+            List<AgentUiState> states = new ArrayList<>();
+            controller.addProgressListener(progress -> states.add(progress.state()));
+            controller.start();
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
+            AgentProgress progress = controller.getProgress();
+            assertEquals(AgentUiState.COMPLETED, progress.state());
+            assertEquals(65.0, progress.currentCoverage());
+            assertContainsInOrder(states, List.of(
+                    AgentUiState.RUNNING,
+                    AgentUiState.ANALYZING,
+                    AgentUiState.GENERATING,
+                    AgentUiState.VERIFYING,
+                    AgentUiState.COVERAGE_UPDATE,
+                    AgentUiState.COMPLETED
+            ));
+        } finally {
+            controller.close();
+        }
+    }
+
+    @Test
+    void stopPublishesStoppingThenStopped() throws Exception {
+        StubTestFileWriter writer = new StubTestFileWriter();
+        DefaultAgentController controller = newController(() -> ExecutionMode.MANUAL, writer);
+        controller.setApprovalGateway(new ImmediateApprovalGateway(ApprovalDecision.approve(null)));
+
+        try {
+            List<AgentUiState> states = new ArrayList<>();
+            controller.addProgressListener(progress -> states.add(progress.state()));
+            controller.start();
+            controller.requestStop();
+            waitForState(controller, AgentState.IDLE, Duration.ofSeconds(5));
+            assertContainsInOrder(states, List.of(AgentUiState.STOPPING, AgentUiState.STOPPED));
+        } finally {
+            controller.close();
+        }
+    }
+
     private static DefaultAgentController newController(
             java.util.function.Supplier<ExecutionMode> modeSupplier,
             StubTestFileWriter writer
     ) {
         return new DefaultAgentController(
                 modeSupplier,
+                () -> 20,
+                () -> 80.0,
                 java.util.concurrent.Executors.newSingleThreadExecutor(),
                 writer,
                 new UnifiedDiffRenderer()
@@ -201,6 +284,17 @@ class DefaultAgentControllerTest {
             }
         }
         return -1;
+    }
+
+    private static void assertContainsInOrder(List<AgentUiState> actual, List<AgentUiState> expectedSubsequence) {
+        int from = 0;
+        for (AgentUiState expected : expectedSubsequence) {
+            int idx = actual.subList(from, actual.size()).indexOf(expected);
+            if (idx < 0) {
+                throw new AssertionError("Expected to find state " + expected + " in order. Actual: " + actual);
+            }
+            from = from + idx + 1;
+        }
     }
 
     private static final class ControlledApprovalGateway implements ApprovalGateway {

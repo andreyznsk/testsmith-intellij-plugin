@@ -16,6 +16,8 @@ public final class AgentControllerService implements AgentController, Disposable
     public AgentControllerService(@NotNull Project project) {
         this.delegate = new DefaultAgentController(
                 () -> TestSmithProjectSettingsService.getInstance(project).getSettings().executionMode,
+                () -> TestSmithProjectSettingsService.getInstance(project).getSettings().maxIterations,
+                () -> (double) TestSmithProjectSettingsService.getInstance(project).getSettings().targetCoverage,
                 java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
                     Thread thread = new Thread(r, "testsmith-agent-runner");
                     thread.setDaemon(true);
@@ -44,6 +46,21 @@ public final class AgentControllerService implements AgentController, Disposable
     @Override
     public @NotNull AgentState getState() {
         return delegate.getState();
+    }
+
+    @Override
+    public @NotNull AgentProgress getProgress() {
+        return delegate.getProgress();
+    }
+
+    @Override
+    public void addProgressListener(@NotNull ProgressListener listener) {
+        delegate.addProgressListener(listener);
+    }
+
+    @Override
+    public void removeProgressListener(@NotNull ProgressListener listener) {
+        delegate.removeProgressListener(listener);
     }
 
     @Override
