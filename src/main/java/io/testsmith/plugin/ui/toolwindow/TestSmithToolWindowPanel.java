@@ -5,16 +5,17 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.ui.Gray;
+import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.JBUI;
 import io.testsmith.plugin.agent.*;
-import io.testsmith.plugin.agent.AgentPreflightValidator;
 import io.testsmith.plugin.settings.TestSmithProjectSettingsService;
-import io.testsmith.plugin.ui.model.AgentUiState;
 import io.testsmith.plugin.settings.ui.TestSmithSettingsConfigurable;
+import io.testsmith.plugin.ui.model.AgentUiState;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -37,7 +38,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     private final ProgressListener progressListener;
 
     private final JBLabel statusLabel = new JBLabel("State: IDLE");
-    private final JBLabel modeLabel = new JBLabel("Mode: Manual");
+    private final JBLabel modeLabel = new JBLabel("Mode: manual");
     private final JButton runButton = new JButton("Run");
     private final JButton stopButton = new JButton("Stop");
     private final JButton settingsButton = new JButton("Settings");
@@ -244,7 +245,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     private void renderProgress(@NotNull AgentProgress progress) {
         progressStatusBadge.setText(progress.state().name());
         progressStatusBadge.setBackground(colorFor(progress.state()));
-        progressStatusBadge.setForeground(Color.WHITE);
+        progressStatusBadge.setForeground(JBColor.WHITE);
 
         iterationLabel.setText("Iteration: " + progress.iteration() + " / " + progress.maxIterations());
         coverageLabel.setText(String.format("Coverage: %.1f / %.1f", progress.currentCoverage(), progress.targetCoverage()));
@@ -270,7 +271,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
 
     private static @NotNull Color colorFor(@NotNull AgentUiState state) {
         return switch (state) {
-            case IDLE, STOPPED -> new Color(128, 128, 128);
+            case IDLE, STOPPED -> Gray._128;
             case ANALYZING -> new Color(66, 133, 244);
             case GENERATING -> new Color(196, 160, 0);
             case VERIFYING -> new Color(0, 150, 170);
