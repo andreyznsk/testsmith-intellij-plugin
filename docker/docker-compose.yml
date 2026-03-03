@@ -1,14 +1,21 @@
-version: "3.9"
 services:
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama
     container_name: ollama
     ports:
       - "11434:11434"
     volumes:
       - ./ollama:/root/.ollama
     environment:
-      OLLAMA_NUM_GPU: "1"
+      - OLLAMA_NUM_GPU=1
     runtime: nvidia
-    command: ["bash", "-lc", "ollama serve & sleep 2 && ollama pull qwen2.5-coder:7b && wait"]
-    restart: unless-stopped
+    entrypoint: >
+      /bin/sh -c "
+              ollama serve &
+              sleep 5 &&
+              echo 'Pulling qwen2.5-coder:7b...' &&
+              ollama pull qwen2.5-coder:7b &&
+              echo 'Ollama models ready. Keeping server running.' &&
+              wait
+            "
+    restart: no
