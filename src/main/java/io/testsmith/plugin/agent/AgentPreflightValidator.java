@@ -1,11 +1,10 @@
 package io.testsmith.plugin.agent;
 
 import com.intellij.openapi.project.Project;
+import io.testsmith.plugin.llm.LlmProviderConfigurationValidator;
 import io.testsmith.plugin.settings.BuildToolMode;
-import io.testsmith.plugin.settings.LlmProvider;
 import io.testsmith.plugin.settings.TestSmithProjectSettings;
 import io.testsmith.plugin.settings.TestSmithProjectSettingsService;
-import io.testsmith.plugin.settings.TestSmithSecretsStore;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,6 +13,9 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 public final class AgentPreflightValidator {
+    private static final LlmProviderConfigurationValidator LLM_CONFIGURATION_VALIDATOR =
+            new LlmProviderConfigurationValidator();
+
     private AgentPreflightValidator() {
     }
 
@@ -35,30 +37,7 @@ public final class AgentPreflightValidator {
     }
 
     private static @Nullable String validateLlmConfiguration(Project project, TestSmithProjectSettings settings) {
-        TestSmithSecretsStore secretsStore = new TestSmithSecretsStore();
-        LlmProvider provider = settings.provider == null ? LlmProvider.OLLAMA : settings.provider;
-        return switch (provider) {
-            case OLLAMA -> {
-                if (settings.ollama == null || isBlank(settings.ollama.baseUrl) || isBlank(settings.ollama.model)) {
-                    yield "Ollama is not configured: base URL and model are required.";
-                }
-                yield null;
-            }
-            case OPENAI -> {
-                String key = secretsStore.getOpenAiKey(project).orElse("");
-                if (key.isBlank() || settings.openAi == null || isBlank(settings.openAi.model)) {
-                    yield "OpenAI is not configured: API key and model are required.";
-                }
-                yield null;
-            }
-            case GIGACHAT -> {
-                String key = secretsStore.getGigaChatKey(project).orElse("");
-                if (key.isBlank() || settings.gigaChat == null || isBlank(settings.gigaChat.model) || isBlank(settings.gigaChat.endpoint)) {
-                    yield "GigaChat is not configured: API key, model and endpoint are required.";
-                }
-                yield null;
-            }
-        };
+        return LLM_CONFIGURATION_VALIDATOR.validate(project, settings).orElse(null);
     }
 
     private static boolean isBuildToolDetected(Project project, BuildToolMode mode) {
@@ -75,7 +54,4 @@ public final class AgentPreflightValidator {
                 || Files.exists(basePath.resolve("build.gradle.kts"));
     }
 
-    private static boolean isBlank(@Nullable String value) {
-        return value == null || value.isBlank();
-    }
 }
