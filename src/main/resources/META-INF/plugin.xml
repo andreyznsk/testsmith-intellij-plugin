@@ -8,7 +8,41 @@
     </description>
     <depends>com.intellij.modules.platform</depends>
 
+    <extensions defaultExtensionNs="com.intellij">
+        <projectConfigurable
+                id="io.testsmith.plugin.settings"
+                displayName="TestSmith"
+                groupId="tools"
+                instance="io.testsmith.plugin.settings.ui.TestSmithSettingsConfigurable"/>
+        <toolWindow
+                id="TestSmith"
+                stripeTitle="TestSmith"
+                anchor="right"
+                icon="/icons/testsmith.svg"
+                factoryClass="io.testsmith.plugin.ui.toolwindow.TestSmithToolWindowFactory"/>
+    </extensions>
+
     <actions>
+        <action
+                id="TestSmith.Run"
+                class="io.testsmith.plugin.ui.actions.RunAgentAction"
+                text="TestSmith: Run Agent"
+                description="Start TestSmith agent run"
+                icon="/icons/testsmith.svg">
+            <add-to-group
+                    group-id="ToolsMenu"
+                    anchor="last"/>
+        </action>
+        <action
+                id="TestSmith.Stop"
+                class="io.testsmith.plugin.ui.actions.StopAgentAction"
+                text="TestSmith: Stop Agent"
+                description="Request TestSmith agent stop"
+                icon="/icons/testsmith.svg">
+            <add-to-group
+                    group-id="ToolsMenu"
+                    anchor="last"/>
+        </action>
         <action
                 id="io.testsmith.plugin.HelloAction"
                 class="io.testsmith.plugin.actions.HelloAction"
