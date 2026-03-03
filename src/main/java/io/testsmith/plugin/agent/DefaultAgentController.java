@@ -1,11 +1,18 @@
 package io.testsmith.plugin.agent;
 
+import io.testsmith.plugin.llm.api.GenerationMode;
+import io.testsmith.plugin.llm.api.LlmClient;
+import io.testsmith.plugin.llm.api.LlmException;
+import io.testsmith.plugin.llm.api.LlmRequest;
+import io.testsmith.plugin.llm.api.LlmTuning;
+import io.testsmith.plugin.llm.api.TestFramework;
 import io.testsmith.plugin.settings.ExecutionMode;
 import io.testsmith.plugin.ui.model.AgentUiState;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -27,6 +34,9 @@ import java.util.function.Supplier;
 
 public final class DefaultAgentController implements AgentController, AutoCloseable {
     private static final int MAX_RECENT_EVENTS = 200;
+    private static final String PLACEHOLDER_TARGET_CLASS = "com.example.Service";
+    private static final String PLACEHOLDER_TARGET_SOURCE = "class Service {}";
+    private static final Duration DEFAULT_LLM_TIMEOUT = Duration.ofSeconds(60);
 
     private final Object lock = new Object();
     private final Supplier<ExecutionMode> modeSupplier;
@@ -42,6 +52,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     private final AtomicReference<AgentProgress> progress = new AtomicReference<>(AgentProgress.initial(0.0));
     private final AtomicLong runToken = new AtomicLong(0L);
     private final AtomicReference<UUID> activeRunId = new AtomicReference<>();
+    private final AtomicReference<LlmClient> configuredLlmClient = new AtomicReference<>(NoOpLlmClient.INSTANCE);
 
     private volatile Future<?> runningTask;
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
@@ -80,11 +91,26 @@ public final class DefaultAgentController implements AgentController, AutoClosea
             state.set(AgentState.RUNNING);
             long token = runToken.incrementAndGet();
             UUID runId = UUID.randomUUID();
+            LlmClient runLlmClient = configuredLlmClient.get();
             activeRunId.set(runId);
             publishProgress(AgentUiState.RUNNING, 1, 0.0, null, "[Agent] START", System.currentTimeMillis());
-            emit(AgentEventType.RUN_STARTED, "[Agent] START mode=" + modeSupplier.get() + ", runId=" + runId);
-            runningTask = executor.submit(() -> runLoop(token, runId));
+            emit(
+                    AgentEventType.RUN_STARTED,
+                    "[Agent] START mode=" + modeSupplier.get()
+                            + ", runId=" + runId
+                            + ", llmClient=" + runLlmClient.getClass().getSimpleName()
+            );
+            runningTask = executor.submit(() -> runLoop(token, runId, runLlmClient));
         }
+    }
+
+    public void start(@NotNull LlmClient llmClient) {
+        configuredLlmClient.set(Objects.requireNonNull(llmClient, "llmClient"));
+        start();
+    }
+
+    public void setLlmClient(@NotNull LlmClient llmClient) {
+        configuredLlmClient.set(Objects.requireNonNull(llmClient, "llmClient"));
     }
 
     @Override
@@ -164,7 +190,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
         this.approvalGateway = Objects.requireNonNull(approvalGateway, "approvalGateway");
     }
 
-    private void runLoop(long token, @NotNull UUID runId) {
+    private void runLoop(long token, @NotNull UUID runId, @NotNull LlmClient runLlmClient) {
         boolean terminatedByStop = false;
         try {
             emit(AgentEventType.STEP_STARTED, "[Agent] ITERATION 1");
@@ -172,6 +198,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
             runStep("ANALYZE_TARGET", token, 300L);
             publishProgress(AgentUiState.GENERATING, 1, 0.0, "com.example.Service", "Generating test");
             runStep("GENERATE_TEST", token, 350L);
+            generateWithLlm(runLlmClient);
             throwIfStopRequested(token, "after GENERATE_TEST");
             GeneratedCandidate candidate = buildCandidate(runId);
             throwIfStopRequested(token, "before approval/write");
@@ -233,6 +260,25 @@ public final class DefaultAgentController implements AgentController, AutoClosea
                 emit(AgentEventType.RUN_STOPPED, "[Agent] TERMINATED");
             }
         }
+    }
+
+    private void generateWithLlm(@NotNull LlmClient runLlmClient) {
+        if (runLlmClient == NoOpLlmClient.INSTANCE) {
+            return;
+        }
+        LlmRequest request = new LlmRequest(
+                PLACEHOLDER_TARGET_CLASS,
+                PLACEHOLDER_TARGET_SOURCE,
+                List.of(),
+                TestFramework.JUNIT5,
+                "",
+                GenerationMode.GENERATE,
+                "",
+                LlmTuning.defaults(),
+                DEFAULT_LLM_TIMEOUT,
+                Map.of()
+        );
+        runLlmClient.generateRaw(request);
     }
 
     private void runStep(String stepName, long token, long durationMillis) throws InterruptedException {
@@ -328,7 +374,7 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     }
 
     private GeneratedCandidate buildCandidate(UUID runId) throws Exception {
-        String targetClassFqn = "com.example.Service";
+        String targetClassFqn = PLACEHOLDER_TARGET_CLASS;
         String testClassFqn = "com.example.ServiceTest";
         Path targetPath = testFileWriter.resolveTestFile(testClassFqn);
         String newContent = """
@@ -422,6 +468,15 @@ public final class DefaultAgentController implements AgentController, AutoClosea
     }
 
     private static final class StopRequestedException extends RuntimeException {
+    }
+
+    private static final class NoOpLlmClient implements LlmClient {
+        private static final NoOpLlmClient INSTANCE = new NoOpLlmClient();
+
+        @Override
+        public String generateRaw(LlmRequest request) {
+            throw new LlmException("No LLM client configured for this run.");
+        }
     }
 
     private record PendingApproval(
