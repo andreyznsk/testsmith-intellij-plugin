@@ -6,10 +6,12 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.util.concurrency.AppExecutorUtil;
 import io.testsmith.plugin.llm.LlmProviderHealthCheckService;
 import io.testsmith.plugin.llm.api.HealthCheckResult;
 import io.testsmith.plugin.llm.security.SecretSanitizer;
+import io.testsmith.plugin.settings.LlmProvider;
 import io.testsmith.plugin.settings.ExecutionMode;
 import io.testsmith.plugin.settings.TestSmithProjectSettings;
 import io.testsmith.plugin.settings.TestSmithProjectSettingsService;
@@ -129,6 +131,9 @@ public final class TestSmithSettingsConfigurable implements SearchableConfigurab
         if (panel == null) {
             return;
         }
+        TestSmithProjectSettings draftSettings = new TestSmithProjectSettings();
+        panel.applyTo(draftSettings);
+
         com.intellij.openapi.ui.ValidationInfo validation = panel.validateProviderForConnectionTest();
         if (validation != null) {
             LOG.debug("LLM health check not started due to UI validation error: "
@@ -136,13 +141,19 @@ public final class TestSmithSettingsConfigurable implements SearchableConfigurab
             if (validation.component != null) {
                 validation.component.requestFocusInWindow();
             }
-            panel.showConnectionTestFailure(SecretSanitizer.sanitize(validation.message));
+            String message = SecretSanitizer.sanitize(validation.message);
+            panel.showConnectionTestFailure(message);
+            HealthCheckResult result = HealthCheckResult.failed(
+                    providerId(draftSettings.provider),
+                    message,
+                    "MISCONFIGURED",
+                    null
+            );
+            showConnectionTestDialog(result, draftSettings);
             return;
         }
 
         panel.setConnectionTestInProgress(true);
-        TestSmithProjectSettings draftSettings = new TestSmithProjectSettings();
-        panel.applyTo(draftSettings);
         String openAiKey = panel.getOpenAiKey();
         String gigaChatKey = panel.getGigaChatKey();
         LOG.debug("LLM health check requested from settings UI. provider=" + draftSettings.provider);
@@ -163,7 +174,21 @@ public final class TestSmithSettingsConfigurable implements SearchableConfigurab
                 }
                 panel.setConnectionTestInProgress(false);
                 panel.showConnectionTestResult(result);
-            });
+                showConnectionTestDialog(result, draftSettings);
+            }, ModalityState.any());
         });
+    }
+
+    private void showConnectionTestDialog(HealthCheckResult result, TestSmithProjectSettings settings) {
+        if (panel == null) {
+            return;
+        }
+        String details = LlmConnectionTestDetailsFormatter.format(settings, result);
+        new LlmConnectionTestDialog(project, result, details).show();
+    }
+
+    private static String providerId(LlmProvider provider) {
+        LlmProvider effectiveProvider = provider == null ? LlmProvider.OLLAMA : provider;
+        return effectiveProvider.name();
     }
 }
