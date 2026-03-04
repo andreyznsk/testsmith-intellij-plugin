@@ -18,12 +18,14 @@ import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.UIUtil;
+import io.testsmith.plugin.llm.api.HealthCheckResult;
 import io.testsmith.plugin.settings.BuildToolMode;
 import io.testsmith.plugin.settings.ExecutionMode;
 import io.testsmith.plugin.settings.LlmProvider;
 import io.testsmith.plugin.settings.TestSmithProjectSettings;
 
 import javax.swing.Box;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
@@ -54,6 +56,8 @@ public final class TestSmithSettingsPanel implements Disposable {
 
     private final ComboBox<LlmProvider> providerCombo = new ComboBox<>(LlmProvider.values());
     private final JPanel providerCards = new JPanel(new CardLayout());
+    private final JButton testConnectionButton = new JButton("Test connection");
+    private final JBLabel testConnectionStatusLabel = new JBLabel(" ");
 
     private final JBTextField ollamaBaseUrlField = new JBTextField();
     private final JBTextField ollamaModelField = new JBTextField();
@@ -75,6 +79,7 @@ public final class TestSmithSettingsPanel implements Disposable {
     private final JBCheckBox verboseLoggingCheck = new JBCheckBox("Verbose logging");
 
     private ComponentValidator maxIterationsValidator;
+    private Runnable testConnectionAction;
 
     private String initialOpenAiKey = "";
     private String initialGigaChatKey = "";
@@ -112,6 +117,7 @@ public final class TestSmithSettingsPanel implements Disposable {
         builder.addComponent(new com.intellij.ui.TitledSeparator("LLM Provider"));
         builder.addLabeledComponent("Provider:", providerCombo);
         builder.addComponent(providerCards);
+        builder.addComponent(buildConnectionTestPanel());
 
         builder.addComponent(new com.intellij.ui.TitledSeparator("Advanced & Safety"));
         builder.addComponent(strictModeCheck);
@@ -164,6 +170,7 @@ public final class TestSmithSettingsPanel implements Disposable {
         markClean(openAiKey, gigaChatKey);
         openAiApiKeyField.setText(initialOpenAiKey);
         gigaChatApiKeyField.setText(initialGigaChatKey);
+        clearConnectionTestStatus();
 
         updateAutonomousControls();
         updateProviderCard();
@@ -341,6 +348,77 @@ public final class TestSmithSettingsPanel implements Disposable {
         initialGigaChatKey = gigaChatKey == null ? "" : gigaChatKey;
     }
 
+    public void setTestConnectionAction(Runnable action) {
+        this.testConnectionAction = action;
+    }
+
+    public void setConnectionTestInProgress(boolean inProgress) {
+        testConnectionButton.setEnabled(!inProgress);
+        testConnectionStatusLabel.setText(inProgress ? "Testing..." : testConnectionStatusLabel.getText());
+    }
+
+    public void showConnectionTestResult(HealthCheckResult result) {
+        if (result == null) {
+            clearConnectionTestStatus();
+            return;
+        }
+        StringBuilder message = new StringBuilder();
+        if (result.status() == HealthCheckResult.Status.OK) {
+            message.append("✅ Success");
+        } else {
+            message.append("❌ Failed");
+        }
+        if (!result.userMessage().isBlank()) {
+            message.append(": ").append(result.userMessage());
+        }
+        if (result.technicalCode() != null && !result.technicalCode().isBlank()) {
+            message.append(" [").append(result.technicalCode()).append("]");
+        }
+        if (result.latencyMs() != null) {
+            message.append(" (").append(result.latencyMs()).append(" ms)");
+        }
+        testConnectionStatusLabel.setText(message.toString());
+    }
+
+    public void showConnectionTestFailure(String userMessage) {
+        testConnectionStatusLabel.setText("❌ Failed: " + userMessage);
+    }
+
+    public void clearConnectionTestStatus() {
+        testConnectionStatusLabel.setText(" ");
+    }
+
+    public ValidationInfo validateProviderForConnectionTest() {
+        LlmProvider provider = (LlmProvider) providerCombo.getSelectedItem();
+        if (provider == null) {
+            provider = LlmProvider.OLLAMA;
+        }
+        if (provider == LlmProvider.OLLAMA) {
+            if (ollamaBaseUrlField.getText().trim().isEmpty()) {
+                return new ValidationInfo("Ollama base URL is required.", ollamaBaseUrlField);
+            }
+            if (ollamaModelField.getText().trim().isEmpty()) {
+                return new ValidationInfo("Ollama model is required.", ollamaModelField);
+            }
+        }
+        if (provider == LlmProvider.OPENAI && getOpenAiKey().isEmpty()) {
+            return new ValidationInfo("OpenAI API key is required.", openAiApiKeyField);
+        }
+        if (provider == LlmProvider.OPENAI && openAiModelField.getText().trim().isEmpty()) {
+            return new ValidationInfo("OpenAI model is required.", openAiModelField);
+        }
+        if (provider == LlmProvider.GIGACHAT && getGigaChatKey().isEmpty()) {
+            return new ValidationInfo("GigaChat API key is required.", gigaChatApiKeyField);
+        }
+        if (provider == LlmProvider.GIGACHAT && gigaChatModelField.getText().trim().isEmpty()) {
+            return new ValidationInfo("GigaChat model is required.", gigaChatModelField);
+        }
+        if (provider == LlmProvider.GIGACHAT && gigaChatEndpointField.getText().trim().isEmpty()) {
+            return new ValidationInfo("GigaChat endpoint is required.", gigaChatEndpointField);
+        }
+        return null;
+    }
+
     private void configureAutonomousWarning() {
         autonomousWarningPanel.add(new JBLabel(AllIcons.General.Warning));
         JBLabel label = new JBLabel("Autonomous mode runs iterative test generation without per-step approval. You can stop the agent at any time.");
@@ -357,7 +435,15 @@ public final class TestSmithSettingsPanel implements Disposable {
 
     private void configureListeners() {
         executionModeCombo.addActionListener(event -> updateAutonomousControls());
-        providerCombo.addActionListener(event -> updateProviderCard());
+        providerCombo.addActionListener(event -> {
+            updateProviderCard();
+            clearConnectionTestStatus();
+        });
+        testConnectionButton.addActionListener(event -> {
+            if (testConnectionAction != null) {
+                testConnectionAction.run();
+            }
+        });
     }
 
     private void updateAutonomousControls() {
@@ -469,6 +555,15 @@ public final class TestSmithSettingsPanel implements Disposable {
         builder.addLabeledComponent("Top P:", ollamaTopPSpinner);
         builder.addLabeledComponent("Repeat penalty:", ollamaRepeatPenaltySpinner);
         return builder.getPanel();
+    }
+
+    private JPanel buildConnectionTestPanel() {
+        JPanel panel = new JBPanel<>(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        panel.add(testConnectionButton);
+        panel.add(Box.createHorizontalStrut(8));
+        testConnectionStatusLabel.setForeground(UIUtil.getContextHelpForeground());
+        panel.add(testConnectionStatusLabel);
+        return panel;
     }
 
     private JPanel buildOpenAiPanel() {

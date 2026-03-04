@@ -9,6 +9,7 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="io.testsmith.plugin.startup.TestSmithStartupActivity"/>
         <projectConfigurable
                 id="io.testsmith.plugin.settings"
                 displayName="TestSmith"

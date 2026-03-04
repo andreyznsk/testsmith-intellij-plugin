@@ -2,8 +2,14 @@ package io.testsmith.plugin.settings.ui;
 
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SearchableConfigurable;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.util.concurrency.AppExecutorUtil;
+import io.testsmith.plugin.llm.LlmProviderHealthCheckService;
+import io.testsmith.plugin.llm.api.HealthCheckResult;
+import io.testsmith.plugin.llm.security.SecretSanitizer;
 import io.testsmith.plugin.settings.ExecutionMode;
 import io.testsmith.plugin.settings.TestSmithProjectSettings;
 import io.testsmith.plugin.settings.TestSmithProjectSettingsService;
@@ -15,8 +21,11 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.JComponent;
 
 public final class TestSmithSettingsConfigurable implements SearchableConfigurable {
+    private static final Logger LOG = Logger.getInstance(TestSmithSettingsConfigurable.class);
+
     private final Project project;
     private final TestSmithSecretsStore secretsStore = new TestSmithSecretsStore();
+    private final LlmProviderHealthCheckService healthCheckService = new LlmProviderHealthCheckService();
     private TestSmithSettingsPanel panel;
 
     public TestSmithSettingsConfigurable(Project project) {
@@ -36,6 +45,7 @@ public final class TestSmithSettingsConfigurable implements SearchableConfigurab
     @Override
     public @Nullable JComponent createComponent() {
         panel = new TestSmithSettingsPanel(project);
+        panel.setTestConnectionAction(this::runConnectionTest);
         reset();
         return panel.getComponent();
     }
@@ -115,4 +125,45 @@ public final class TestSmithSettingsConfigurable implements SearchableConfigurab
         }
     }
 
+    private void runConnectionTest() {
+        if (panel == null) {
+            return;
+        }
+        com.intellij.openapi.ui.ValidationInfo validation = panel.validateProviderForConnectionTest();
+        if (validation != null) {
+            LOG.debug("LLM health check not started due to UI validation error: "
+                    + SecretSanitizer.sanitize(validation.message));
+            if (validation.component != null) {
+                validation.component.requestFocusInWindow();
+            }
+            panel.showConnectionTestFailure(SecretSanitizer.sanitize(validation.message));
+            return;
+        }
+
+        panel.setConnectionTestInProgress(true);
+        TestSmithProjectSettings draftSettings = new TestSmithProjectSettings();
+        panel.applyTo(draftSettings);
+        String openAiKey = panel.getOpenAiKey();
+        String gigaChatKey = panel.getGigaChatKey();
+        LOG.debug("LLM health check requested from settings UI. provider=" + draftSettings.provider);
+
+        AppExecutorUtil.getAppExecutorService().submit(() -> {
+            HealthCheckResult result = healthCheckService.healthCheck(draftSettings, openAiKey, gigaChatKey);
+            LOG.debug("LLM health check result received in settings UI. provider="
+                    + result.providerId()
+                    + " status="
+                    + result.status()
+                    + " technicalCode="
+                    + SecretSanitizer.sanitize(result.technicalCode())
+                    + " latencyMs="
+                    + result.latencyMs());
+            ApplicationManager.getApplication().invokeLater(() -> {
+                if (panel == null) {
+                    return;
+                }
+                panel.setConnectionTestInProgress(false);
+                panel.showConnectionTestResult(result);
+            });
+        });
+    }
 }
