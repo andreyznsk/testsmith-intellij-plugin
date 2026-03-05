@@ -1,11 +1,12 @@
 package io.testsmith.plugin.agent;
 
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.diagnostic.Logger;
+import io.testsmith.plugin.coverage.JaCoCoXmlPathResolver;
+import io.testsmith.plugin.llm.LlmProviderConfigurationValidator;
 import io.testsmith.plugin.settings.BuildToolMode;
-import io.testsmith.plugin.settings.LlmProvider;
 import io.testsmith.plugin.settings.TestSmithProjectSettings;
 import io.testsmith.plugin.settings.TestSmithProjectSettingsService;
-import io.testsmith.plugin.settings.TestSmithSecretsStore;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,51 +15,44 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 public final class AgentPreflightValidator {
+    private static final Logger LOG = Logger.getInstance(AgentPreflightValidator.class);
+    private static final LlmProviderConfigurationValidator LLM_CONFIGURATION_VALIDATOR =
+            new LlmProviderConfigurationValidator();
+    private static final JaCoCoXmlPathResolver JACOCO_XML_PATH_RESOLVER = new JaCoCoXmlPathResolver();
+
     private AgentPreflightValidator() {
     }
 
     public static @NotNull Optional<String> validate(@NotNull Project project) {
+        LOG.debug("Run preflight started");
         if (project.isDisposed()) {
+            LOG.debug("Run preflight failed: project is disposed");
             return Optional.of("Project is disposed.");
         }
 
         TestSmithProjectSettings settings = TestSmithProjectSettingsService.getInstance(project).getSettings();
-        if (settings.jacocoXmlPath == null || settings.jacocoXmlPath.isBlank()) {
-            return Optional.of("JaCoCo XML path must be configured before Run.");
+        Optional<Path> jacocoXmlPath = JACOCO_XML_PATH_RESOLVER.resolve(project.getBasePath(), settings);
+        if (jacocoXmlPath.isEmpty()) {
+            LOG.debug("Run preflight failed: JaCoCo XML path could not be resolved");
+            return Optional.of("JaCoCo XML report was not found. Configure JaCoCo XML path in settings or generate coverage report via Maven/Gradle.");
         }
         if (!isBuildToolDetected(project, settings.buildToolMode)) {
+            LOG.debug("Run preflight failed: build tool is not detected");
             return Optional.of("Build tool is not detected. Configure Build tool in settings or ensure pom.xml / build.gradle exists.");
         }
 
         String llmError = validateLlmConfiguration(project, settings);
-        return llmError == null ? Optional.empty() : Optional.of(llmError);
+        if (llmError != null) {
+            LOG.debug("Run preflight failed: LLM configuration error: " + llmError);
+            return Optional.of(llmError);
+        }
+
+        LOG.debug("Run preflight passed. JaCoCo XML path: " + jacocoXmlPath.get());
+        return Optional.empty();
     }
 
     private static @Nullable String validateLlmConfiguration(Project project, TestSmithProjectSettings settings) {
-        TestSmithSecretsStore secretsStore = new TestSmithSecretsStore();
-        LlmProvider provider = settings.provider == null ? LlmProvider.OLLAMA : settings.provider;
-        return switch (provider) {
-            case OLLAMA -> {
-                if (settings.ollama == null || isBlank(settings.ollama.baseUrl) || isBlank(settings.ollama.model)) {
-                    yield "Ollama is not configured: base URL and model are required.";
-                }
-                yield null;
-            }
-            case OPENAI -> {
-                String key = secretsStore.getOpenAiKey(project).orElse("");
-                if (key.isBlank() || settings.openAi == null || isBlank(settings.openAi.model)) {
-                    yield "OpenAI is not configured: API key and model are required.";
-                }
-                yield null;
-            }
-            case GIGACHAT -> {
-                String key = secretsStore.getGigaChatKey(project).orElse("");
-                if (key.isBlank() || settings.gigaChat == null || isBlank(settings.gigaChat.model) || isBlank(settings.gigaChat.endpoint)) {
-                    yield "GigaChat is not configured: API key, model and endpoint are required.";
-                }
-                yield null;
-            }
-        };
+        return LLM_CONFIGURATION_VALIDATOR.validate(project, settings).orElse(null);
     }
 
     private static boolean isBuildToolDetected(Project project, BuildToolMode mode) {
@@ -75,7 +69,4 @@ public final class AgentPreflightValidator {
                 || Files.exists(basePath.resolve("build.gradle.kts"));
     }
 
-    private static boolean isBlank(@Nullable String value) {
-        return value == null || value.isBlank();
-    }
 }

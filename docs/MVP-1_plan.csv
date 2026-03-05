@@ -29,11 +29,12 @@ Iteration 4,23,Manual approval flow,2,1,Diff & accept/reject,done
 Iteration 4,24,Run/Stop actions,1,0.5,IDE actions,done
 Iteration 4,25,Progress visualization,1,0.5,Iteration feedback,done
 
-Iteration 5,26,Provider switching mechanism,2,1,Strategy pattern
+Iteration 5,26,Provider switching mechanism,2,1,Strategy pattern,done
 Iteration 5,27,OpenAI provider,2,1,API integration
 Iteration 5,28,GigaChat provider,2,1,API integration
 Iteration 5,29,Secrets handling,1,0.5,IDE secure storage
 Iteration 5,30,Provider validation,1,0.5,Compatibility checks
+Iteration 5.1,30.1,Minor Improvements (Test Connection),1,0.5,Test Connection
 
 Iteration 6,31,MCP decision adapter,2,1,Read-only MCP
 Iteration 6,32,Rule vs LLM comparison,1,0.5,Decision analysis

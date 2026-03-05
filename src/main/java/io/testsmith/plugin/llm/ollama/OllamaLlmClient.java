@@ -1,6 +1,7 @@
 package io.testsmith.plugin.llm.ollama;
 
 import io.testsmith.plugin.llm.api.LlmClient;
+import io.testsmith.plugin.llm.api.HealthCheckResult;
 import io.testsmith.plugin.llm.api.LlmMisconfigurationException;
 import io.testsmith.plugin.llm.api.LlmRequest;
 import io.testsmith.plugin.llm.prompt.PromptComposer;
@@ -33,6 +34,11 @@ public final class OllamaLlmClient implements LlmClient {
         Objects.requireNonNull(request, "request must not be null");
         String prompt = promptComposer.compose(request);
         return ollamaApi.generate(prompt, request);
+    }
+
+    @Override
+    public HealthCheckResult healthCheck() {
+        return ollamaApi.healthCheck();
     }
 
     static void validateConfig(String baseUrl, String model) {

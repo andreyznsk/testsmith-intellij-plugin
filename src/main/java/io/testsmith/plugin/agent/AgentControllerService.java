@@ -2,7 +2,12 @@ package io.testsmith.plugin.agent;
 
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.components.Service;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
+import io.testsmith.plugin.llm.LlmClientFactory;
+import io.testsmith.plugin.llm.api.LlmClient;
+import io.testsmith.plugin.llm.api.LlmMisconfigurationException;
+import io.testsmith.plugin.settings.TestSmithProjectSettings;
 import io.testsmith.plugin.settings.TestSmithProjectSettingsService;
 import org.jetbrains.annotations.NotNull;
 
@@ -11,9 +16,15 @@ import java.util.Objects;
 
 @Service(Service.Level.PROJECT)
 public final class AgentControllerService implements AgentController, Disposable {
+    private static final Logger LOG = Logger.getInstance(AgentControllerService.class);
+
+    private final Project project;
+    private final LlmClientFactory llmClientFactory;
     private final DefaultAgentController delegate;
 
     public AgentControllerService(@NotNull Project project) {
+        this.project = project;
+        this.llmClientFactory = new LlmClientFactory();
         this.delegate = new DefaultAgentController(
                 () -> TestSmithProjectSettingsService.getInstance(project).getSettings().executionMode,
                 () -> TestSmithProjectSettingsService.getInstance(project).getSettings().maxIterations,
@@ -30,7 +41,15 @@ public final class AgentControllerService implements AgentController, Disposable
 
     @Override
     public void start() {
-        delegate.start();
+        TestSmithProjectSettings settings = TestSmithProjectSettingsService.getInstance(project).getSettings();
+        LlmClient llmClient;
+        try {
+            llmClient = llmClientFactory.create(project, settings);
+        } catch (LlmMisconfigurationException ex) {
+            LOG.warn("Agent run aborted due to LLM misconfiguration: " + ex.getMessage());
+            return;
+        }
+        delegate.start(llmClient);
     }
 
     @Override

@@ -82,6 +82,7 @@ temp/
 .env.*
 local.properties
 
+ollama
 .intellijPlatform
 .run
 .aiassistant

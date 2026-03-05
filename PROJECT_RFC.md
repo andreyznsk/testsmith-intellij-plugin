@@ -203,6 +203,23 @@ public interface LlmClient {
 * GigaChat
 * provider switching via settings
 
+### Provider Diagnostics (Iteration 5.x)
+
+Each provider must implement a lightweight connectivity check.
+
+```java
+public interface LlmClient {
+  LlmResponse generateTest(LlmRequest request);
+
+  /** Lightweight connectivity / auth / baseUrl check */
+  HealthCheckResult healthCheck();
+}
+```
+* **Health check must:**
+* be safe (no file writes, no test execution)
+* have strict timeout
+* never log secrets
+
 ---
 
 ## 🧪 Production-Grade Test Generation Rules (MANDATORY)
@@ -297,6 +314,7 @@ public interface LlmClient {
 * Actions: Run / Stop / Approve
 * PSI API — анализ классов и сигнатур
 * Process runner — `mvn test` / `gradle test`
+* Settings: LLM provider includes "Test connection" action
 
 ---
 
@@ -438,6 +456,12 @@ Additionally capture:
 * OpenAI
 * GigaChat
 * provider switching
+
+### Iteration 5.1 — Minor Improvements (UX & Diagnostics)
+
+* LLM provider connection test button in Settings
+* Improve provider error messages and diagnostics (no secret leaks)
+* Optional: show effective model/baseUrl in UI summary
 
 ### Iteration 6 — MCP (Optional / Educational)
 
