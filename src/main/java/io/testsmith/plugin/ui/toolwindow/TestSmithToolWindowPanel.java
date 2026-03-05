@@ -2,6 +2,7 @@ package io.testsmith.plugin.ui.toolwindow;
 
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -30,6 +31,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implements Disposable, ApprovalGateway {
+    private static final Logger LOG = Logger.getInstance(TestSmithToolWindowPanel.class);
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private final Project project;
@@ -233,11 +235,14 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     }
 
     private void startFromUi() {
+        LOG.debug("Run requested from tool window: starting preflight validation");
         Optional<String> error = AgentPreflightValidator.validate(project);
         if (error.isPresent()) {
+            LOG.debug("Tool window preflight failed: " + error.get());
             Messages.showErrorDialog(project, error.get(), "TestSmith Run Validation");
             return;
         }
+        LOG.debug("Tool window preflight passed: starting agent");
         controller.start();
         refresh();
     }
