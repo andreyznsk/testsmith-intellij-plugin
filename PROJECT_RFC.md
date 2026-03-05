@@ -2,6 +2,14 @@
 Это **единый source of truth** для нашего нового чат-проекта.
 Формат сделан так, чтобы **тебе было удобно вести проект**, а **мне — делать review и держать контекст**.
 
+## Development Workflow
+
+1. All architectural decisions must be added to PROJECT_RFC.md.
+2. Changes are discussed in chat first.
+3. RFC patch is prepared.
+4. Implementation is delegated to Codex.
+5. PR is reviewed against RFC invariants.
+
 > 📌 **Скопируй этот документ целиком и вставь в новый чат.**
 > После этого напиши: **“Iteration 0 — architecture validation”**.
 
