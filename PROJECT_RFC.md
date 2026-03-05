@@ -470,6 +470,38 @@ Additionally capture:
 * LLM provider connection test button in Settings
 * Improve provider error messages and diagnostics (no secret leaks)
 * Optional: show effective model/baseUrl in UI summary
+* Tool Window: "Analyze" action to read existing JaCoCo XML and display current coverage before starting
+
+#### Analyze Coverage (existing JaCoCo XML, no test run)
+
+Purpose:
+Allow the user to analyze an already generated JaCoCo XML report and show the real current coverage
+in the Tool Window before the agent loop starts (prevents confusion when UI initially shows 0%).
+
+Behavior:
+* Tool Window provides an **Analyze** button.
+* Reads JaCoCo XML from the configured path in Settings.
+* Does **not** run tests and does **not** execute Maven/Gradle.
+* Parses the report and updates:
+  * current coverage value in UI
+  * last event message
+  * optionally current weakest class (if selector already exists)
+
+UI State Rules:
+* Agent state remains **IDLE**
+* Iteration remains **0 / 0**
+* Only coverage and last event fields are updated
+
+Failure Handling:
+* If JaCoCo XML path is not configured, file is missing, or XML cannot be parsed:
+  * show user-visible error (dialog or IDE notification)
+  * log diagnostics (no secret leaks)
+
+Constraints:
+* Must run in background (non-blocking UI)
+* Must reuse existing JaCoCo parsing implementation
+* Must not modify any project files
+
 
 ### Iteration 6 — MCP (Optional / Educational)
 
