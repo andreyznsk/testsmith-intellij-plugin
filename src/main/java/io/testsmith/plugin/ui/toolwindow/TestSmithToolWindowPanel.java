@@ -43,6 +43,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     private final JBLabel modeLabel = new JBLabel("Mode: manual");
     private final JButton runButton = new JButton("Run");
     private final JButton stopButton = new JButton("Stop");
+    private final JButton analyzeButton = new JButton("Analyze");
     private final JButton settingsButton = new JButton("Settings");
     private final JButton approveButton = new JButton("Approve");
     private final JButton editButton = new JButton("Edit");
@@ -96,6 +97,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
         JPanel buttons = new JBPanel<>(new FlowLayout(FlowLayout.RIGHT, JBUI.scale(8), 0));
         buttons.add(runButton);
         buttons.add(stopButton);
+        buttons.add(analyzeButton);
         buttons.add(settingsButton);
 
         header.add(statusPanel, BorderLayout.WEST);
@@ -190,6 +192,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
     private void bindActions() {
         runButton.addActionListener(event -> startFromUi());
         stopButton.addActionListener(event -> controller.requestStop());
+        analyzeButton.addActionListener(event -> controller.analyzeCoverage());
         settingsButton.addActionListener(event ->
                 ShowSettingsUtil.getInstance().showSettingsDialog(project, TestSmithSettingsConfigurable.class));
         approveButton.addActionListener(event -> approvePending());
@@ -206,6 +209,7 @@ public final class TestSmithToolWindowPanel extends JBPanel<JBPanel<?>> implemen
         modeLabel.setText("Mode: " + mode);
 
         runButton.setEnabled(uiState == AgentUiState.IDLE || uiState == AgentUiState.ERROR || uiState == AgentUiState.STOPPED || uiState == AgentUiState.COMPLETED);
+        analyzeButton.setEnabled(uiState == AgentUiState.IDLE);
         stopButton.setEnabled(uiState == AgentUiState.RUNNING
                 || uiState == AgentUiState.ANALYZING
                 || uiState == AgentUiState.GENERATING

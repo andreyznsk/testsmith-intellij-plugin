@@ -190,6 +190,16 @@ public final class DefaultAgentController implements AgentController, AutoClosea
         this.approvalGateway = Objects.requireNonNull(approvalGateway, "approvalGateway");
     }
 
+    boolean applyCoverageAnalysis(double coveragePercent, @NotNull String message) {
+        Objects.requireNonNull(message, "message");
+        if (state.get() != AgentState.IDLE) {
+            return false;
+        }
+        publishProgress(AgentUiState.IDLE, 0, coveragePercent, null, message);
+        emit(AgentEventType.STEP_FINISHED, message);
+        return true;
+    }
+
     private void runLoop(long token, @NotNull UUID runId, @NotNull LlmClient runLlmClient) {
         boolean terminatedByStop = false;
         try {

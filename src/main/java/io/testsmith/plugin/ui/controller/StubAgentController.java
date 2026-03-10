@@ -61,6 +61,11 @@ public final class StubAgentController implements AgentController, Disposable {
     }
 
     @Override
+    public void analyzeCoverage() {
+        log("Coverage analyzed (stub)");
+    }
+
+    @Override
     public void approve() {
         log("Approve ignored in simplified stub state model");
     }

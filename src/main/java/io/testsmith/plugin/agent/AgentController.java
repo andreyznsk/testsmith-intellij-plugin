@@ -5,6 +5,10 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 
 public interface AgentController extends AgentSession {
+    default void analyzeCoverage() {
+        // Optional operation for implementations that can analyze existing JaCoCo XML on demand.
+    }
+
     @NotNull AgentState getState();
 
     @NotNull AgentProgress getProgress();

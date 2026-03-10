@@ -5,6 +5,8 @@ public interface AgentController {
 
     void stop();
 
+    void analyzeCoverage();
+
     void approve();
 
     void reject();

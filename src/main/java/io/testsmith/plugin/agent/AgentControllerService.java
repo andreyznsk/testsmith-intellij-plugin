@@ -1,9 +1,14 @@
 package io.testsmith.plugin.agent;
 
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.components.Service;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
 import io.testsmith.plugin.llm.LlmClientFactory;
 import io.testsmith.plugin.llm.api.LlmClient;
 import io.testsmith.plugin.llm.api.LlmMisconfigurationException;
@@ -20,11 +25,13 @@ public final class AgentControllerService implements AgentController, Disposable
 
     private final Project project;
     private final LlmClientFactory llmClientFactory;
+    private final CoverageAnalyzeService coverageAnalyzeService;
     private final DefaultAgentController delegate;
 
     public AgentControllerService(@NotNull Project project) {
         this.project = project;
         this.llmClientFactory = new LlmClientFactory();
+        this.coverageAnalyzeService = new CoverageAnalyzeService();
         this.delegate = new DefaultAgentController(
                 () -> TestSmithProjectSettingsService.getInstance(project).getSettings().executionMode,
                 () -> TestSmithProjectSettingsService.getInstance(project).getSettings().maxIterations,
@@ -55,6 +62,59 @@ public final class AgentControllerService implements AgentController, Disposable
     @Override
     public void requestStop() {
         delegate.requestStop();
+    }
+
+    @Override
+    public void analyzeCoverage() {
+        LOG.info("Coverage analyze requested");
+        if (delegate.getState() != AgentState.IDLE) {
+            LOG.info("Coverage analyze ignored: agent state is " + delegate.getState());
+            return;
+        }
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "TestSmith: Analyze Coverage", false) {
+            private CoverageAnalyzeService.CoverageAnalysisResult result;
+            private CoverageAnalyzeService.CoverageAnalyzeException failure;
+
+            @Override
+            public void run(@NotNull ProgressIndicator indicator) {
+                indicator.setIndeterminate(true);
+                indicator.setText("Reading JaCoCo XML report");
+                try {
+                    TestSmithProjectSettings settings = TestSmithProjectSettingsService.getInstance(project).getSettings();
+                    result = coverageAnalyzeService.analyze(project.getBasePath(), settings);
+                } catch (CoverageAnalyzeService.CoverageAnalyzeException ex) {
+                    failure = ex;
+                }
+            }
+
+            @Override
+            public void onSuccess() {
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    if (project.isDisposed()) {
+                        return;
+                    }
+                    if (failure != null) {
+                        LOG.warn("Coverage analyze failed: " + failure.getMessage(), failure);
+                        Messages.showErrorDialog(project, failure.getMessage(), "TestSmith Coverage Analysis");
+                        return;
+                    }
+                    if (result == null) {
+                        return;
+                    }
+                    LOG.info("Coverage analyzed: " + String.format("%.1f", result.coveragePercent()));
+                    String message = String.format(
+                            "Coverage analyzed: %.1f%% (%d/%d lines)",
+                            result.coveragePercent(),
+                            result.coveredLines(),
+                            result.coveredLines() + result.missedLines()
+                    );
+                    boolean applied = delegate.applyCoverageAnalysis(result.coveragePercent(), message);
+                    if (!applied) {
+                        LOG.info("Coverage analysis result ignored: agent state is " + delegate.getState());
+                    }
+                });
+            }
+        });
     }
 
     @Override

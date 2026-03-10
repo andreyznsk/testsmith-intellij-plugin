@@ -293,6 +293,26 @@ class DefaultAgentControllerTest {
         }
     }
 
+    @Test
+    void applyCoverageAnalysisUpdatesIdleProgressWithoutChangingIteration() {
+        StubTestFileWriter writer = new StubTestFileWriter();
+        DefaultAgentController controller = newController(() -> ExecutionMode.MANUAL, writer);
+        try {
+            boolean updated = controller.applyCoverageAnalysis(12.24, "Coverage analyzed: 12.2%");
+            assertTrue(updated);
+
+            AgentProgress progress = controller.getProgress();
+            assertEquals(AgentUiState.IDLE, progress.state());
+            assertEquals(0, progress.iteration());
+            assertEquals(0, progress.maxIterations());
+            assertEquals(12.2, progress.currentCoverage());
+            assertEquals("Coverage analyzed: 12.2%", progress.lastMessage());
+            assertEquals(AgentState.IDLE, controller.getState());
+        } finally {
+            controller.close();
+        }
+    }
+
     private static DefaultAgentController newController(
             java.util.function.Supplier<ExecutionMode> modeSupplier,
             StubTestFileWriter writer
